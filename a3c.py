@@ -195,7 +195,13 @@ should be computed.
             self.r = tf.placeholder(tf.float32, [None], name="r")
 
             log_prob_tf = tf.nn.log_softmax(pi.dist_params)
+            assert(log_prob_tf.get_shape() == [env.action_space.n],
+                   "{} != {}".format(log_prob_tf.get_shape(), [env.action_space.n]))
             prob_tf = tf.nn.softmax(pi.dist_params)
+            log_prob_tf_ = pi.log_prob(self.ac)
+            # assert(log_prob_tf.get_shape() == log_prob_tf_.get_shape(),
+            #        "{} != {}".format(log_prob_tf.get_shape(), log_prob_tf_.get_shape()))
+            # log_prob_tf = log_prob_tf_
 
             # the "policy gradients" loss:  its derivative is precisely the policy gradient
             # notice that self.ac is a placeholder that is provided externally.
