@@ -1,3 +1,5 @@
+from pprint import pprint
+
 import cv2
 from gym.spaces.box import Box
 import numpy as np
@@ -10,21 +12,28 @@ from universe.wrappers import BlockingReset, GymCoreAction, EpisodeID, Unvectori
 from universe import spaces as vnc_spaces
 from universe.spaces.vnc_event import keycode
 import time
+import interface
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 universe.configure_logging()
 
+
 def create_env(env_id, client_id, remotes, **kwargs):
     spec = gym.spec(env_id)
+    pprint(spec)
 
     if spec.tags.get('flashgames', False):
         return create_flash_env(env_id, client_id, remotes, **kwargs)
     elif spec.tags.get('atari', False) and spec.tags.get('vnc', False):
         return create_vncatari_env(env_id, client_id, remotes, **kwargs)
+    elif spec.id == 'CartPole-v0':
+        return create_classic_env(env_id)
     else:
         # Assume atari.
         assert "." not in env_id  # universe environments have dots in names.
         return create_atari_env(env_id)
+
 
 def create_flash_env(env_id, client_id, remotes, **_):
     env = gym.make(env_id)
@@ -50,9 +59,10 @@ def create_flash_env(env_id, client_id, remotes, **_):
     env = Unvectorize(env)
     env.configure(fps=5.0, remotes=remotes, start_timeout=15 * 60, client_id=client_id,
                   vnc_driver='go', vnc_kwargs={
-                    'encoding': 'tight', 'compress_level': 0,
-                    'fine_quality_level': 50, 'subsample_level': 3})
+            'encoding': 'tight', 'compress_level': 0,
+            'fine_quality_level': 50, 'subsample_level': 3})
     return env
+
 
 def create_vncatari_env(env_id, client_id, remotes, **_):
     env = gym.make(env_id)
@@ -70,6 +80,7 @@ def create_vncatari_env(env_id, client_id, remotes, **_):
     env.configure(remotes=remotes, start_timeout=15 * 60, fps=fps, client_id=client_id)
     return env
 
+
 def create_atari_env(env_id):
     env = gym.make(env_id)
     env = Vectorize(env)
@@ -78,8 +89,18 @@ def create_atari_env(env_id):
     env = Unvectorize(env)
     return env
 
+
+def create_classic_env(env_id):
+    env = gym.make(env_id)
+    env = Vectorize(env)
+    env = DiagnosticsInfo(env)
+    env = Unvectorize(env)
+    return env
+
+
 def DiagnosticsInfo(env, *args, **kwargs):
     return vectorized.VectorizeFilter(env, DiagnosticsInfoI, *args, **kwargs)
+
 
 class DiagnosticsInfoI(vectorized.Filter):
     def __init__(self, log_interval=503):
@@ -153,7 +174,8 @@ class DiagnosticsInfoI(vectorized.Filter):
             self._all_rewards.append(reward)
 
         if done:
-            logger.info('Episode terminating: episode_reward=%s episode_length=%s', self._episode_reward, self._episode_length)
+            logger.info('Episode terminating: episode_reward=%s episode_length=%s', self._episode_reward,
+                        self._episode_length)
             total_time = time.time() - self._episode_time
             to_log["global/episode_reward"] = self._episode_reward
             to_log["global/episode_length"] = self._episode_length
@@ -165,8 +187,9 @@ class DiagnosticsInfoI(vectorized.Filter):
 
         return observation, reward, done, to_log
 
+
 def _process_frame42(frame):
-    frame = frame[34:34+160, :160]
+    frame = frame[34:34 + 160, :160]
     # Resize by half, then down to 42x42 (essentially mipmapping). If
     # we resize directly we lose pixels that, when mapped to 42x42,
     # aren't close enough to the pixel boundary.
@@ -178,6 +201,7 @@ def _process_frame42(frame):
     frame = np.reshape(frame, [42, 42, 1])
     return frame
 
+
 class AtariRescale42x42(vectorized.ObservationWrapper):
     def __init__(self, env=None):
         super(AtariRescale42x42, self).__init__(env)
@@ -185,6 +209,7 @@ class AtariRescale42x42(vectorized.ObservationWrapper):
 
     def _observation(self, observation_n):
         return [_process_frame42(observation) for observation in observation_n]
+
 
 class FixedKeyState(object):
     def __init__(self, keys):
@@ -208,6 +233,7 @@ class FixedKeyState(object):
                 break
         return action_n
 
+
 class DiscreteToFixedKeysVNCActions(vectorized.ActionWrapper):
     """
     Define a fixed action space. Action 0 is all keys up. Each element of keys can be a single key or a space-separated list of keys
@@ -220,6 +246,7 @@ class DiscreteToFixedKeysVNCActions(vectorized.ActionWrapper):
        e=DiscreteToFixedKeysVNCActions(e, ['left', 'right', 'space', 'left space', 'right space'])
     will have 6 actions: [none, left, right, space, left space, right space]
     """
+
     def __init__(self, env, keys):
         super(DiscreteToFixedKeysVNCActions, self).__init__(env)
 
@@ -247,8 +274,10 @@ class DiscreteToFixedKeysVNCActions(vectorized.ActionWrapper):
         # avoid warnings.
         return [self._actions[int(action)] for action in action_n]
 
+
 class CropScreen(vectorized.ObservationWrapper):
     """Crops out a [height]x[width] area starting from (top,left) """
+
     def __init__(self, env, height, width, top=0, left=0):
         super(CropScreen, self).__init__(env)
         self.height = height
@@ -258,8 +287,9 @@ class CropScreen(vectorized.ObservationWrapper):
         self.observation_space = Box(0, 255, shape=(height, width, 3))
 
     def _observation(self, observation_n):
-        return [ob[self.top:self.top+self.height, self.left:self.left+self.width, :] if ob is not None else None
+        return [ob[self.top:self.top + self.height, self.left:self.left + self.width, :] if ob is not None else None
                 for ob in observation_n]
+
 
 def _process_frame_flash(frame):
     frame = cv2.resize(frame, (200, 128))
@@ -267,6 +297,7 @@ def _process_frame_flash(frame):
     frame *= (1.0 / 255.0)
     frame = np.reshape(frame, [128, 200, 1])
     return frame
+
 
 class FlashRescale(vectorized.ObservationWrapper):
     def __init__(self, env=None):

@@ -7,10 +7,13 @@ import six.moves.queue as queue
 import scipy.signal
 import threading
 import distutils.version
+
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
+
 
 def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
+
 
 def process_rollout(rollout, gamma, lambda_=1.0):
     """
@@ -31,13 +34,16 @@ given a rollout, compute its returns and the advantage
     features = rollout.features[0]
     return Batch(batch_si, batch_a, batch_adv, batch_r, rollout.terminal, features)
 
+
 Batch = namedtuple("Batch", ["si", "a", "adv", "r", "terminal", "features"])
+
 
 class PartialRollout(object):
     """
 a piece of a complete rollout.  We run our agent, and process its experience
 once it has processed enough steps.
 """
+
     def __init__(self):
         self.states = []
         self.actions = []
@@ -65,12 +71,14 @@ once it has processed enough steps.
         self.terminal = other.terminal
         self.features.extend(other.features)
 
+
 class RunnerThread(threading.Thread):
     """
 One of the key distinctions between a normal environment and a universe environment
 is that a universe environment is _real time_.  This means that there should be a thread
 that would constantly interact with the environment and tell it what to do.  This thread is here.
 """
+
     def __init__(self, env, policy, num_local_steps, visualise):
         threading.Thread.__init__(self)
         self.queue = queue.Queue(5)
@@ -100,7 +108,6 @@ that would constantly interact with the environment and tell it what to do.  Thi
             # observation.
 
             self.queue.put(next(rollout_provider), timeout=600.0)
-
 
 
 def env_runner(env, policy, num_local_steps, summary_writer, render):
@@ -158,6 +165,7 @@ runner appends the policy to the queue.
         # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
         yield rollout
 
+
 class A3C(object):
     def __init__(self, env, task, visualise):
         """
@@ -172,21 +180,22 @@ should be computed.
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
-                self.network = LSTMPolicy(env.observation_space.shape, env.action_space.n)
-                self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
+                self.network = LSTMPolicy(env.observation_space.shape, env.action_space)
+                self.global_step = tf.get_variable("global_step", [], tf.int32,
+                                                   initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
 
         with tf.device(worker_device):
             with tf.variable_scope("local"):
-                self.local_network = pi = LSTMPolicy(env.observation_space.shape, env.action_space.n)
+                self.local_network = pi = LSTMPolicy(env.observation_space.shape, env.action_space)
                 pi.global_step = self.global_step
 
             self.ac = tf.placeholder(tf.float32, [None, env.action_space.n], name="ac")
             self.adv = tf.placeholder(tf.float32, [None], name="adv")
             self.r = tf.placeholder(tf.float32, [None], name="r")
 
-            log_prob_tf = tf.nn.log_softmax(pi.logits)
-            prob_tf = tf.nn.softmax(pi.logits)
+            log_prob_tf = tf.nn.log_softmax(pi.dist_params)
+            prob_tf = tf.nn.softmax(pi.dist_params)
 
             # the "policy gradients" loss:  its derivative is precisely the policy gradient
             # notice that self.ac is a placeholder that is provided externally.
@@ -208,14 +217,13 @@ should be computed.
             # smaller than 20 makes the algorithm more difficult to tune and to get to work.
             self.runner = RunnerThread(env, pi, 20, visualise)
 
-
             grads = tf.gradients(self.loss, pi.var_list)
 
             if use_tf12_api:
                 tf.summary.scalar("model/policy_loss", pi_loss / bs)
                 tf.summary.scalar("model/value_loss", vf_loss / bs)
                 tf.summary.scalar("model/entropy", entropy / bs)
-                tf.summary.image("model/state", pi.x)
+                # tf.summary.image("model/state", pi.x)
                 tf.summary.scalar("model/grad_global_norm", tf.global_norm(grads))
                 tf.summary.scalar("model/var_global_norm", tf.global_norm(pi.var_list))
                 self.summary_op = tf.summary.merge_all()
@@ -224,7 +232,7 @@ should be computed.
                 tf.scalar_summary("model/policy_loss", pi_loss / bs)
                 tf.scalar_summary("model/value_loss", vf_loss / bs)
                 tf.scalar_summary("model/entropy", entropy / bs)
-                tf.image_summary("model/state", pi.x)
+                # tf.image_summary("model/state", pi.x)
                 tf.scalar_summary("model/grad_global_norm", tf.global_norm(grads))
                 tf.scalar_summary("model/var_global_norm", tf.global_norm(pi.var_list))
                 self.summary_op = tf.merge_all_summaries()
