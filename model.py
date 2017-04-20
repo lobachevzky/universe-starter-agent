@@ -94,16 +94,31 @@ class LSTMPolicy(object):
 
         self.dist_params = linear(x, ac_space.dim * n_dist_params, "action", normalized_columns_initializer(0.01))
         self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
+
+        if ac_space.is_continuous:
+            self.dist_params = tf.nn.relu(self.dist_params)  # alpha and beta are positive
+            split = tf.unstack(self.dist_params, axis=2)
+            self.dist = tf.contrib.distributions.Beta(*split)
+        # else:
+        #     max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)
+        #     self.dist = tf.contrib.distributions.Categorical(logits=self.dist_params - max)
+
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        self.sample = categorical_sample(self.dist_params, ac_space.n)[0, :]
+        self.action = categorical_sample(self.dist_params, ac_space.n)[0, :]
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
+        self.ac_space = ac_space
+
+    def log_prob(self, action):
+        if self.ac_space.is_discrete:
+            action = tf.to_int32(action)
+        return tf.reduce_prod(self.dist.log_prob(action), axis=1)
 
     def get_initial_features(self):
         return self.state_init
 
     def act(self, ob, c, h):
         sess = tf.get_default_session()
-        return sess.run([self.sample, self.vf] + self.state_out,
+        return sess.run([self.action, self.vf] + self.state_out,
                         {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})
 
     def value(self, ob, c, h):
