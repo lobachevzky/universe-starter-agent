@@ -226,8 +226,8 @@ should be computed.
 
             # loss of value function
             vf_loss = 0.5 * tf.reduce_sum(tf.square(pi.vf - self.r))
-            # entropy = - tf.reduce_sum(prob_tf * log_prob_tf)
-            entropy = tf.reduce_sum(pi.dist.entropy())
+            entropy = - tf.reduce_sum(prob_tf * log_prob_tf)
+            # entropy = tf.reduce_sum(pi.dist.entropy())
 
             bs = tf.to_float(tf.shape(pi.x)[0])
             self.loss = pi_loss + 0.5 * vf_loss - entropy * 0.01
