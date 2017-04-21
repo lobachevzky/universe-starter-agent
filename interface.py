@@ -87,10 +87,6 @@ class Env:
     __metaclass__ = ABCMeta
 
     @abstractproperty
-    def is_gazebo(self):
-        pass
-
-    @abstractproperty
     def action_space(self):
         pass
 

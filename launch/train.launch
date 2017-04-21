@@ -1,6 +1,6 @@
 <launch>
     <arg name="gui" default="true" />
-    <include file="$(find ardrone_controller)/launch/driver.launch">
+    <include file="$(find a3c)/launch/driver.launch">
       <arg name="gui" default="$(arg gui)" />
     </include>
 
@@ -20,7 +20,7 @@
     <node name="agent_node"
       pkg="a3c"
       type="random_agent.py"
-      output="log"
+      output="screen"
       required="true"
     />
 

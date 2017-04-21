@@ -2,6 +2,7 @@ from __future__ import absolute_import, print_function
 
 import copy
 import os
+import random
 from Queue import Queue
 from threading import Lock
 
@@ -12,8 +13,9 @@ from interface import Env
 import rospy
 import tf
 from cv_bridge import CvBridge
-from gazebo_msgs.msg import ContactsState
-from geometry_msgs.msg import Twist
+from gazebo_msgs.msg import ContactsState, ModelState
+from gazebo_msgs.srv import SetModelState
+from geometry_msgs.msg import Twist, Point, Quaternion, Pose
 from geometry_msgs.msg import Vector3
 from sensor_msgs.msg import Image
 from spaces import ActionSpace, ObservationSpace
@@ -59,8 +61,18 @@ def get_debug_num(contact_msg):
     return int(first_match)
 
 
-class Gazebo(Env):
+def set_random_pos():
+    call_service('/gazebo/set_model_state', SetModelState, [ModelState(
+        model_name='quadrotor',
+        pose=Pose(position=Point(
+            x=random.uniform(0, 50),
+            y=random.uniform(0, 50),
+            z=1
+        ))
+    )])
 
+
+class Gazebo(Env):
     def __init__(self,
                  observation_range,
                  action_range,
@@ -68,7 +80,6 @@ class Gazebo(Env):
                  reward_file='reward.csv'):
 
         rospy.init_node('environment')
-
         self._done = False
         self._tf_listener = tf.TransformListener()
         self._cv_bridge = CvBridge()
@@ -94,7 +105,7 @@ class Gazebo(Env):
         self._land_publisher = rospy.Publisher('ardrone/land', msg.Empty, queue_size=1)
 
         # get observation shape
-        rospy.loginfo('Waiting for first image...')
+        rospy.loginfo('Waiting for first images...')
         while True:
             with self._images_lock:
                 if self._image_queue.full():
@@ -103,6 +114,7 @@ class Gazebo(Env):
                     break
             # prevent CPU burnout
             rospy.wait_for_message('ardrone/image_raw', Image)
+        rospy.loginfo('Got image dimensions.')
 
         # spaces
         self._observation_space = ObservationSpace(*observation_range, shape=observation_shape)
@@ -121,10 +133,12 @@ class Gazebo(Env):
     # crash_bumper callback
     def _contact(self, contact_msg):
         if contact_msg.states:
+            print('waiting on done lock in _contact')
             with self._done_lock:
                 self._done = True
 
-        # image_raw callback
+                # image_raw callback
+
     def _update_image(self, image_msg):
         with self._skipped_images_lock, self._images_lock:
             if self._skipped_images >= self._images_to_skip:
@@ -139,8 +153,7 @@ class Gazebo(Env):
                 self._skipped_images += 1
 
     def step(self, action):
-        # self._action_publisher.publish(action_msg(*action))  # do_action
-        self._action_publisher.publish(action_msg(1, 1, 1))  # do_action
+        self._action_publisher.publish(action_msg(*action))  # do_action
         rospy.wait_for_message('ardrone/image_raw', Image)  # take at most one step per image
         with self._done_lock, self._images_lock:
             progress = calculate_progress(self._tf_listener)
@@ -148,10 +161,15 @@ class Gazebo(Env):
             self._progress = progress
             return self._images, reward, self._done, None
 
+    def takeoff(self):
+        self._takeoff_publisher.publish(msg.Empty())
+
     def reset(self):
+        print('reseting')
         with self._done_lock:
-            call_service('gazebo/reset_world')
-            self._takeoff_publisher.publish(msg.Empty())
+            # call_service('gazebo/reset_world')
+            # set_random_pos()
+            self.takeoff()
             self._progress = 0
             self._done = False
         with self._images_lock:
@@ -163,9 +181,9 @@ class Gazebo(Env):
     @property
     def _images(self):
         assert self._image_queue.full()
-        images = concat_images(list(self._image_queue.queue), self._cv_bridge)
-        return np.expand_dims(images, 3)
+        return concat_images(list(self._image_queue.queue), self._cv_bridge)
 
+    @property
     def max_time(self):
         return 300
 
@@ -176,7 +194,3 @@ class Gazebo(Env):
     @property
     def observation_space(self):
         return self._observation_space
-
-    @property
-    def is_gazebo(self):
-        return True
