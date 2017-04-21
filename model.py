@@ -75,15 +75,9 @@ class Policy(object):
         self.vf = tf.reshape(linear(h, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
         if ac_space.is_continuous:
-            print('GOING WITH CONTINUOUS')
-            dp = self.dist_params
             self.dist_params = tf.nn.softplus(self.dist_params + 1)  # alpha and beta are positive
-            with tf.control_dependencies(
-                    [tf.assert_greater_equal(self.dist_params, 1.0, message="dist_params vs 1"),
-                     tf.assert_equal(tf.shape(dp), tf.shape(self.dist_params))]
-            ):
-                split = tf.unstack(self.dist_params, axis=2)
-                self.dist = tf.contrib.distributions.Beta(*split)
+            split = tf.unstack(self.dist_params, axis=2)
+            self.dist = tf.contrib.distributions.Beta(*split)
             self.action = tf.squeeze(self.dist.sample(), axis=1)  # [bsize, ac_space.dim]
         else:
             max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)  # [bsize, 1, 1]
@@ -92,10 +86,8 @@ class Policy(object):
             self.action = tf.squeeze(self.dist.sample())  # [bsize, ac_space.dim]
             # self.dist.sample() gives # [bsize, ac_space.dim]
 
-        with tf.control_dependencies([tf.check_numerics(self.action, message="action")]):
-
-            self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
-            self.ac_space = ac_space
+        self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
+        self.ac_space = ac_space
 
     def log_prob(self, action):
         if self.ac_space.is_discrete:

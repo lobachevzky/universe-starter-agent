@@ -2,7 +2,7 @@ from __future__ import print_function
 from collections import namedtuple
 import numpy as np
 import tensorflow as tf
-from model import Policy, MLPpolicy, LSTMpolicy
+from model import MLPpolicy, LSTMpolicy
 import six.moves.queue as queue
 import scipy.signal
 import threading
@@ -116,8 +116,6 @@ the policy, and as long as the rollout exceeds a certain length, the thread
 runner appends the policy to the queue.
 """
     last_state = env.reset()  #.reshape(env.observation_space.shape)
-    # print('env.reset()')
-    # print(last_state.shape)
     last_features = policy.get_initial_features()
     length = 0
     rewards = 0
@@ -131,17 +129,7 @@ runner appends the policy to the queue.
 
             fetched = policy.act(last_state, *last_features)
             action, value_, features = fetched[0], fetched[1], fetched[2:]
-            # print('action')
-            # print(action)
-            # print('value')
-            # print(value_)
             state, reward, terminal, info = env.step(action)
-            # print('state')
-            # print(state.shape)
-            # print('reward')
-            # print(reward)
-            # print('terminal')
-            # print(terminal)
             state = state.reshape(env.observation_space.shape)
             if render:
                 env.render()
@@ -174,9 +162,6 @@ runner appends the policy to the queue.
 
         if not terminal_end:
             rollout.r = policy.value(last_state, *last_features)
-            # print('policy.value')
-            # print(rollout.r)
-            # exit()
 
         # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
         yield rollout
@@ -238,7 +223,8 @@ should be computed.
                 tf.summary.scalar("model/policy_loss", pi_loss / bs)
                 tf.summary.scalar("model/value_loss", vf_loss / bs)
                 tf.summary.scalar("model/entropy", entropy / bs)
-                # tf.summary.image("model/state", pi.x)
+                if len(list(env.observation_space.shape)) > 1:
+                    tf.summary.image("model/state", pi.x)
                 tf.summary.scalar("model/grad_global_norm", tf.global_norm(grads))
                 tf.summary.scalar("model/var_global_norm", tf.global_norm(pi.var_list))
                 self.summary_op = tf.summary.merge_all()
@@ -247,7 +233,8 @@ should be computed.
                 tf.scalar_summary("model/policy_loss", pi_loss / bs)
                 tf.scalar_summary("model/value_loss", vf_loss / bs)
                 tf.scalar_summary("model/entropy", entropy / bs)
-                # tf.image_summary("model/state", pi.x)
+                if len(list(env.observation_space.shape)) > 1:
+                    tf.image_summary("model/state", pi.x)
                 tf.scalar_summary("model/grad_global_norm", tf.global_norm(grads))
                 tf.scalar_summary("model/var_global_norm", tf.global_norm(pi.var_list))
                 self.summary_op = tf.merge_all_summaries()
@@ -306,8 +293,6 @@ server.
             self.adv: batch.adv,
             self.r: batch.r,
         }
-        # for name, array in zip(['x', 'ac', 'adv', 'r'], [batch.si, batch.a, batch.adv, batch.r]):
-        #     print(name + ' ' + str(array.shape))
 
         for i, feature in enumerate(batch.features):
             feed_dict.update({self.local_network.state_in[i]: feature})
