@@ -212,12 +212,17 @@ should be computed.
                 hot = log_prob_tf * one_hot
 
             reduce_sum = tf.reduce_sum(hot, 2)
+            ll = pi.log_prob(self.ac)
             log_prob = tf.reduce_prod(reduce_sum, 1)
+            # with tf.control_dependencies([tf.assert_equal(
+            #         tf.shape(log_prob),
+            #         tf.shape(self.adv)
+            # )]):
             with tf.control_dependencies([tf.assert_equal(
-                    tf.shape(log_prob),
+                    tf.shape(ll),
                     tf.shape(self.adv)
             )]):
-                pi_loss = - tf.reduce_sum(log_prob * self.adv)
+                pi_loss = - tf.reduce_sum(ll * self.adv)
 
             # loss of value function
             vf_loss = 0.5 * tf.reduce_sum(tf.square(pi.vf - self.r))
