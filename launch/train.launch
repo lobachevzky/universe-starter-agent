@@ -1,0 +1,39 @@
+<launch>
+    <arg name="gui" default="true" />
+    <include file="$(find ardrone_controller)/launch/driver.launch">
+      <arg name="gui" default="$(arg gui)" />
+    </include>
+
+    <arg name="model" default="$(find ardrone_sim)/urdf/quadrotor.urdf.xacro"/>
+    <arg name="restore" default="False" />
+    <arg name="log-dir" default="/tmp/" />
+    <arg name="num_workers" default="" />
+    <arg name="i" default="" />
+    <arg name="remotes" default="" />
+
+    <param name="controller_rate" type="double" value="10.0"/>
+    <param name="num_images" type="int" value="4"/>
+    <param name="image_scale" type="double" value="1"/>
+    <param name="images_to_skip" type="int" value="0"/>
+    <param name="restore" type="bool" value="$(arg restore)"/>
+
+    <node name="agent_node"
+      pkg="a3c"
+      type="random_agent.py"
+      output="log"
+      required="true"
+    />
+
+    <!--<node name="agent_node"-->
+      <!--pkg="a3c"-->
+      <!--type="worker.py"-->
+      <!--output="log"-->
+      <!--required="true"-->
+      <!--args='==log-dir $(arg log-dir)-->
+            <!--==env-id gazebo -->
+            <!--==job-name worker-->
+            <!--==num-workers $(arg num_workers)-->
+            <!--==task $(arg i)-->
+            <!--==remotes $(arg remotes)'-->
+    <!--/>-->
+</launch>
