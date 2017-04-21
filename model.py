@@ -63,7 +63,7 @@ class Policy(object):
                 # TODO
         # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
 
-        h = self.lstm_network(x)
+        h = self.network(x)
 
         if ac_space.is_continuous:
             n_dist_params = 2
@@ -104,39 +104,12 @@ class Policy(object):
         sess = tf.get_default_session()
         return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
 
-    def lstm_network(self, x):
-        x = tf.expand_dims(flatten(x), [0])
-        size = 256
-        if use_tf100_api:
-            lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
-        else:
-            lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
-        self.state_size = lstm.state_size
-        step_size = tf.shape(self.x)[:1]
+    def network(self, x):
+        raise NotImplemented
 
-        c_init = np.zeros((1, lstm.state_size.c), np.float32)
-        h_init = np.zeros((1, lstm.state_size.h), np.float32)
-        self.state_init = [c_init, h_init]
-        c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
-        h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
-        self.state_in = [c_in, h_in]
 
-        if use_tf100_api:
-            state_in = rnn.LSTMStateTuple(c_in, h_in)
-        else:
-            state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
-
-            # TODO
-        lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-            lstm, x, initial_state=state_in, sequence_length=step_size,
-            time_major=False)
-
-        lstm_c, lstm_h = state_in  # lstm_state
-        self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        # TODO
-        return tf.reshape(lstm_outputs, [-1, size])
-
-    def mlp_network(self, x):
+class MLPpolicy(Policy):
+    def network(self, x):
         size = 256
         if use_tf100_api:
             lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
@@ -170,3 +143,37 @@ class Policy(object):
 
         h = tf.nn.elu(linear(x, 60, 'h1'))
         return tf.nn.elu(linear(h, 60, 'h2'))
+
+
+class LSTMPolicy(Policy):
+    def network(self, x):
+        x = tf.expand_dims(flatten(x), [0])
+        size = 256
+        if use_tf100_api:
+            lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
+        else:
+            lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
+        self.state_size = lstm.state_size
+        step_size = tf.shape(self.x)[:1]
+
+        c_init = np.zeros((1, lstm.state_size.c), np.float32)
+        h_init = np.zeros((1, lstm.state_size.h), np.float32)
+        self.state_init = [c_init, h_init]
+        c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
+        h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
+        self.state_in = [c_in, h_in]
+
+        if use_tf100_api:
+            state_in = rnn.LSTMStateTuple(c_in, h_in)
+        else:
+            state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
+
+            # TODO
+        lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+            lstm, x, initial_state=state_in, sequence_length=step_size,
+            time_major=False)
+
+        lstm_c, lstm_h = state_in  # lstm_state
+        self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
+        # TODO
+        return tf.reshape(lstm_outputs, [-1, size])
