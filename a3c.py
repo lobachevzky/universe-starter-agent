@@ -2,7 +2,7 @@ from __future__ import print_function
 from collections import namedtuple
 import numpy as np
 import tensorflow as tf
-from model import LSTMPolicy
+from model import Policy
 import six.moves.queue as queue
 import scipy.signal
 import threading
@@ -180,55 +180,28 @@ should be computed.
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
-                self.network = LSTMPolicy(env.observation_space.shape, env.action_space)
+                self.network = Policy(env.observation_space.shape, env.action_space)
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
 
         with tf.device(worker_device):
             with tf.variable_scope("local"):
-                self.local_network = pi = LSTMPolicy(env.observation_space.shape, env.action_space)
+                self.local_network = pi = Policy(env.observation_space.shape, env.action_space)
                 pi.global_step = self.global_step
 
             self.ac = tf.placeholder(tf.float32, [None, env.action_space.dim], name="ac")
             self.adv = tf.placeholder(tf.float32, [None], name="adv")
             self.r = tf.placeholder(tf.float32, [None], name="r")
 
-            log_prob_tf = tf.nn.log_softmax(pi.dist_params)  # bsize, 1
-            prob_tf = tf.nn.softmax(pi.dist_params)
-            # log_prob_tf_ = pi.log_prob(self.ac)
-            # assert(log_prob_tf.get_shape() == log_prob_tf_.get_shape(),
-            #        "{} != {}".format(log_prob_tf.get_shape(), log_prob_tf_.get_shape()))
-            # log_prob_tf = tf.reduce_sum(log_prob_tf_, axis=-1)
-
             # the "policy gradients" loss:  its derivative is precisely the policy gradient
             # notice that self.ac is a placeholder that is provided externally.
             # adv will contain the advantages, as calculated in process_rollout
-            one_hot = tf.one_hot(tf.to_int32(self.ac), env.action_space.n)  # bsize, 1, 2
-            with tf.control_dependencies([tf.assert_equal(
-                tf.shape(log_prob_tf),
-                tf.shape(one_hot)
-            )]):
-                hot = log_prob_tf * one_hot
-
-            reduce_sum = tf.reduce_sum(hot, 2)
-            ll = pi.log_prob(self.ac)
-            log_prob = tf.reduce_prod(reduce_sum, 1)
-            # with tf.control_dependencies([tf.assert_equal(
-            #         tf.shape(log_prob),
-            #         tf.shape(self.adv)
-            # )]):
-            with tf.control_dependencies([tf.assert_equal(
-                    tf.shape(ll),
-                    tf.shape(self.adv)
-            )]):
-                pi_loss = - tf.reduce_sum(ll * self.adv)
+            pi_loss = - tf.reduce_sum(pi.log_prob(self.ac) * self.adv)
 
             # loss of value function
             vf_loss = 0.5 * tf.reduce_sum(tf.square(pi.vf - self.r))
-            entropy = - tf.reduce_sum(prob_tf * log_prob_tf)
-            # entropy = tf.reduce_sum(pi.dist.entropy())
-
+            entropy = tf.reduce_sum(pi.dist.entropy())
             bs = tf.to_float(tf.shape(pi.x)[0])
             self.loss = pi_loss + 0.5 * vf_loss - entropy * 0.01
 

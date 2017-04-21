@@ -52,7 +52,7 @@ def categorical_sample(logits, d):
     return tf.one_hot(value, d)
 
 
-class LSTMPolicy(object):
+class Policy(object):
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
 
@@ -60,7 +60,7 @@ class LSTMPolicy(object):
             for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
 
-    # TODO
+                # TODO
         # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
         # x = tf.expand_dims(flatten(x), [0])
 
@@ -84,13 +84,13 @@ class LSTMPolicy(object):
         else:
             state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
 
-    # TODO
+            # TODO
         # lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
         #     lstm, x, initial_state=state_in, sequence_length=step_size,
         #     time_major=False)
 
-        lstm_c, lstm_h = state_in # lstm_state
-    # TODO
+        lstm_c, lstm_h = state_in  # lstm_state
+        # TODO
         # x = tf.reshape(lstm_outputs, [-1, size])
 
         h = tf.nn.elu(linear(x, 60, 'h1'))
@@ -114,11 +114,7 @@ class LSTMPolicy(object):
             self.dist = tf.contrib.distributions.Categorical(logits=self.dist_params - max)
             # self.dist.sample() gives # [bsize, ac_space.dim]
 
-        # self.dist_params = tf.reshape(self.dist_params, [-1, n_dist_params])  # TODO!
-
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        # old_action = categorical_sample(self.dist_params, ac_space.n)[0, :]
-        # hot = tf.one_hot(self.dist.sample(), ac_space.n)
         self.action = self.dist.sample()  # [bsize, ac_space.dim]
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
         self.ac_space = ac_space
