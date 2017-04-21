@@ -182,8 +182,6 @@ should be computed.
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
-                np.savetxt('/tmp/ob_space.txt', env.observation_space.low)
-                np.savetxt('/tmp/ob_space_shape.txt', env.observation_space.low.shape)
                 self.network = policy(env.observation_space.shape, env.action_space)
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),

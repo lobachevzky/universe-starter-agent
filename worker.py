@@ -21,9 +21,6 @@ logger.setLevel(logging.INFO)
 class FastSaver(tf.train.Saver):
     def save(self, sess, save_path, global_step=None, latest_filename=None,
              meta_graph_suffix="meta", write_meta_graph=True):
-        print('ssssssssssssssssssssssssssssssssssssss')
-        print(save_path)
-        print('ssssssssssssssssssssssssssssssssssssss')
         super(FastSaver, self).save(sess, save_path, global_step, latest_filename,
                                     meta_graph_suffix, False)
 
@@ -135,7 +132,7 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--visualise', action='store_true',
                         help="Visualise the gym environment by running env.render() between each timestep")
 
-    args = parser.parse_args()
+    (args, _) = parser.parse_known_args()
     spec = cluster_spec(args.num_workers, 1)
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 

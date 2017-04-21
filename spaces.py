@@ -17,7 +17,6 @@ class Continuous(Box):
         self._high = init(high)
         assert (self._high.shape == self._low.shape)
 
-    @property
     def dim(self):
         return self._low.size
 

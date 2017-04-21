@@ -78,6 +78,7 @@ class Policy(object):
             self.dist_params = tf.nn.softplus(self.dist_params + 1)  # alpha and beta are positive
             split = tf.unstack(self.dist_params, axis=2)
             self.dist = tf.contrib.distributions.Beta(*split)
+            # self.action = tf.reshape(self.dist.sample(), ac_space.shape)
             self.action = tf.squeeze(self.dist.sample(), axis=1)  # [bsize, ac_space.dim]
         else:
             max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)  # [bsize, 1, 1]

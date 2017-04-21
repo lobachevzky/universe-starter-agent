@@ -110,7 +110,7 @@ class Gazebo(Env):
             with self._images_lock:
                 if self._image_queue.full():
                     observation_shape = self._images.shape
-                    print(observation_shape)
+                    rospy.loginfo(observation_shape)
                     break
             # prevent CPU burnout
             rospy.wait_for_message('ardrone/image_raw', Image)
@@ -133,7 +133,6 @@ class Gazebo(Env):
     # crash_bumper callback
     def _contact(self, contact_msg):
         if contact_msg.states:
-            print('waiting on done lock in _contact')
             with self._done_lock:
                 self._done = True
 
@@ -165,9 +164,8 @@ class Gazebo(Env):
         self._takeoff_publisher.publish(msg.Empty())
 
     def reset(self):
-        print('reseting')
         with self._done_lock:
-            # call_service('gazebo/reset_world')
+            call_service('gazebo/reset_world')
             # set_random_pos()
             self.takeoff()
             self._progress = 0
@@ -181,7 +179,8 @@ class Gazebo(Env):
     @property
     def _images(self):
         assert self._image_queue.full()
-        return concat_images(list(self._image_queue.queue), self._cv_bridge)
+        images = concat_images(list(self._image_queue.queue), self._cv_bridge)
+        return np.expand_dims(images, 0)  # for convolutions
 
     @property
     def max_time(self):

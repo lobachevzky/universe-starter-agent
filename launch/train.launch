@@ -17,12 +17,12 @@
     <param name="images_to_skip" type="int" value="0"/>
     <param name="restore" type="bool" value="$(arg restore)"/>
 
-    <node name="agent_node"
-      pkg="a3c"
-      type="random_agent.py"
-      output="screen"
-      required="true"
-    />
+    <!--<node name="agent_node"-->
+      <!--pkg="a3c"-->
+      <!--type="random_agent.py"-->
+      <!--output="screen"-->
+      <!--required="true"-->
+    <!--/>-->
 
     <!--<node name="agent_node"-->
       <!--pkg="a3c"-->
@@ -36,4 +36,14 @@
             <!--==task $(arg i)-->
             <!--==remotes $(arg remotes)'-->
     <!--/>-->
+
+    <node name="agent_node"
+      pkg="a3c"
+      type="worker.py"
+      output="screen"
+      required="true"
+      args='--log-dir /tmp/ardrone
+            --env-id gazebo 
+            --job-name worker'
+    />
 </launch>

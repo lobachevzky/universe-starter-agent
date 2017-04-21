@@ -54,14 +54,14 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
 
     cmds_map = [new_cmd(session, "ps", base_cmd + ["--job-name", "ps"], mode, logdir, shell)]
     for i in range(num_workers):
-        if i == 0:
-            base_cmd = "docker run -i --rm --net=host ardrone " \
-                       "/usr/bin/python worker.py " \
-                       "--log-dir cartpole " \
-                       "--env-id CartPole-v0 " \
-                       "--num-workers 1 " \
-                       "--job-name worker" \
-                .split()
+        # if i == 0:
+        #     base_cmd = "docker run -i --rm --net=host ardrone " \
+        #                "/usr/bin/python worker.py " \
+        #                "--log-dir cartpole " \
+        #                "--env-id CartPole-v0 " \
+        #                "--num-workers 1 " \
+        #                "--job-name worker" \
+        #         .split()
         cmds_map += [new_cmd(session,
             "w-%d" % i, base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]], mode, logdir, shell)]
 

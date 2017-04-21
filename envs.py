@@ -13,6 +13,7 @@ from universe import spaces as vnc_spaces
 from universe.spaces.vnc_event import keycode
 import time
 import interface
+from gazebo import Gazebo
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -20,9 +21,10 @@ universe.configure_logging()
 
 
 def create_env(env_id, client_id, remotes, **kwargs):
-    spec = gym.spec(env_id)
-    pprint(spec)
+    if env_id == 'gazebo':
+        return Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
 
+    spec = gym.spec(env_id)
     if spec.tags.get('flashgames', False):
         return create_flash_env(env_id, client_id, remotes, **kwargs)
     elif spec.tags.get('atari', False) and spec.tags.get('vnc', False):
