@@ -2,7 +2,7 @@ from __future__ import print_function
 from collections import namedtuple
 import numpy as np
 import tensorflow as tf
-from model import Policy, MLPpolicy
+from model import Policy, MLPpolicy, LSTMpolicy
 import six.moves.queue as queue
 import scipy.signal
 import threading
@@ -177,17 +177,18 @@ should be computed.
 
         self.env = env
         self.task = task
+        policy = LSTMpolicy
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
-                self.network = MLPpolicy(env.observation_space.shape, env.action_space)
+                self.network = policy(env.observation_space.shape, env.action_space)
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
 
         with tf.device(worker_device):
             with tf.variable_scope("local"):
-                self.local_network = pi = MLPpolicy(env.observation_space.shape, env.action_space)
+                self.local_network = pi = policy(env.observation_space.shape, env.action_space)
                 pi.global_step = self.global_step
 
             self.ac = tf.placeholder(tf.float32, [None, env.action_space.dim], name="ac")
@@ -286,9 +287,10 @@ server.
             self.ac: batch.a,
             self.adv: batch.adv,
             self.r: batch.r,
-            self.local_network.state_in[0]: batch.features[0],
-            self.local_network.state_in[1]: batch.features[1],
         }
+
+        for i, feature in enumerate(batch.features):
+            feed_dict.update({self.local_network.state_in[i]: feature})
 
         fetched = sess.run(fetches, feed_dict=feed_dict)
 

@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 import distutils.version
+import abc
 
 use_tf100_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('1.0.0')
 
@@ -53,15 +54,14 @@ def categorical_sample(logits, d):
 
 
 class Policy(object):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
 
         if len(list(ob_space)) > 1:
             for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
-
-                # TODO
-        # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
 
         h = self.network(x)
 
@@ -92,60 +92,43 @@ class Policy(object):
             action = tf.to_int32(action)
         return tf.reduce_prod(self.dist.log_prob(action), axis=1)
 
+    @abc.abstractmethod
     def get_initial_features(self):
-        return self.state_init
+        pass
 
-    def act(self, ob, c, h):
-        sess = tf.get_default_session()
-        return sess.run([self.action, self.vf] + self.state_out,
-                        {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})
+    @abc.abstractmethod
+    def act(self, *args):
+        pass
 
-    def value(self, ob, c, h):
-        sess = tf.get_default_session()
-        return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
+    @abc.abstractmethod
+    def value(self, *args):
+        pass
 
+    @abc.abstractmethod
     def network(self, x):
-        raise NotImplemented
+        pass
 
 
 class MLPpolicy(Policy):
     def network(self, x):
-        size = 256
-        if use_tf100_api:
-            lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
-        else:
-            lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
-        self.state_size = lstm.state_size
-        step_size = tf.shape(self.x)[:1]
+        size1, size2 = 60, 60
+        h = tf.nn.elu(linear(x, size1, 'h1'))
+        return tf.nn.elu(linear(h, size2, 'h2'))
 
-        c_init = np.zeros((1, lstm.state_size.c), np.float32)
-        h_init = np.zeros((1, lstm.state_size.h), np.float32)
-        self.state_init = [c_init, h_init]
-        c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
-        h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
-        self.state_in = [c_in, h_in]
+    def get_initial_features(self):
+        return []
 
-        if use_tf100_api:
-            state_in = rnn.LSTMStateTuple(c_in, h_in)
-        else:
-            state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
+    def act(self, ob):
+        sess = tf.get_default_session()
+        return sess.run([self.action, self.vf],
+                        {self.x: [ob]})
 
-            # TODO
-        # lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-        #     lstm, x, initial_state=state_in, sequence_length=step_size,
-        #     time_major=False)
-
-        lstm_c, lstm_h = state_in  # lstm_state
-        self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        # TODO
-        # TODO
-        # x = tf.reshape(lstm_outputs, [-1, size])
-
-        h = tf.nn.elu(linear(x, 60, 'h1'))
-        return tf.nn.elu(linear(h, 60, 'h2'))
+    def value(self, ob):
+        sess = tf.get_default_session()
+        return sess.run(self.vf, {self.x: [ob]})[0]
 
 
-class LSTMPolicy(Policy):
+class LSTMpolicy(Policy):
     def network(self, x):
         x = tf.expand_dims(flatten(x), [0])
         size = 256
@@ -168,12 +151,22 @@ class LSTMPolicy(Policy):
         else:
             state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
 
-            # TODO
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
             lstm, x, initial_state=state_in, sequence_length=step_size,
             time_major=False)
 
         lstm_c, lstm_h = state_in  # lstm_state
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        # TODO
         return tf.reshape(lstm_outputs, [-1, size])
+
+    def get_initial_features(self):
+        return self.state_init
+
+    def act(self, ob, c, h):
+        sess = tf.get_default_session()
+        return sess.run([self.action, self.vf] + self.state_out,
+                        {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})
+
+    def value(self, ob, c, h):
+        sess = tf.get_default_session()
+        return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
