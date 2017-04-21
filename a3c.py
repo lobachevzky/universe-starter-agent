@@ -30,7 +30,6 @@ given a rollout, compute its returns and the advantage
     # this formula for the advantage comes "Generalized Advantage Estimation":
     # https://arxiv.org/abs/1506.02438
     batch_adv = discount(delta_t, gamma * lambda_)
-
     features = rollout.features[0]
     return Batch(batch_si, batch_a, batch_adv, batch_r, rollout.terminal, features)
 
@@ -116,7 +115,9 @@ The logic of the thread runner.  In brief, it constantly keeps on running
 the policy, and as long as the rollout exceeds a certain length, the thread
 runner appends the policy to the queue.
 """
-    last_state = env.reset()
+    last_state = env.reset()  #.reshape(env.observation_space.shape)
+    # print('env.reset()')
+    # print(last_state.shape)
     last_features = policy.get_initial_features()
     length = 0
     rewards = 0
@@ -126,10 +127,22 @@ runner appends the policy to the queue.
         rollout = PartialRollout()
 
         for _ in range(num_local_steps):
+            # TODO: why isn't this ob reshape working?
+
             fetched = policy.act(last_state, *last_features)
             action, value_, features = fetched[0], fetched[1], fetched[2:]
-            # argmax to convert from one-hot
+            # print('action')
+            # print(action)
+            # print('value')
+            # print(value_)
             state, reward, terminal, info = env.step(action)
+            # print('state')
+            # print(state.shape)
+            # print('reward')
+            # print(reward)
+            # print('terminal')
+            # print(terminal)
+            state = state.reshape(env.observation_space.shape)
             if render:
                 env.render()
 
@@ -152,15 +165,18 @@ runner appends the policy to the queue.
             if terminal or length >= timestep_limit:
                 terminal_end = True
                 if length >= timestep_limit or not env.metadata.get('semantics.autoreset'):
-                    last_state = env.reset()
+                    last_state = env.reset()  #.reshape(env.observation_space.shape)
                 last_features = policy.get_initial_features()
-                print("Episode finished. Sum of rewards: %d. Length: %d" % (rewards, length))
+                print("Episode finished. Sum of rewards: {}. Length: {}".format(rewards, length))
                 length = 0
                 rewards = 0
                 break
 
         if not terminal_end:
             rollout.r = policy.value(last_state, *last_features)
+            # print('policy.value')
+            # print(rollout.r)
+            # exit()
 
         # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
         yield rollout
@@ -290,6 +306,8 @@ server.
             self.adv: batch.adv,
             self.r: batch.r,
         }
+        # for name, array in zip(['x', 'ac', 'adv', 'r'], [batch.si, batch.a, batch.adv, batch.r]):
+        #     print(name + ' ' + str(array.shape))
 
         for i, feature in enumerate(batch.features):
             feed_dict.update({self.local_network.state_in[i]: feature})
