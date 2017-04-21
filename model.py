@@ -75,7 +75,7 @@ class Policy(object):
         self.vf = tf.reshape(linear(h, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
         if ac_space.is_continuous:
-            self.dist_params = tf.nn.softplus(self.dist_params + 1)  # alpha and beta are positive
+            self.dist_params = tf.nn.softplus(self.dist_params) + 1 # alpha and beta are positive
             split = tf.unstack(self.dist_params, axis=2)
             self.dist = tf.contrib.distributions.Beta(*split)
             # self.action = tf.reshape(self.dist.sample(), ac_space.shape)
