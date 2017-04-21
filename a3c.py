@@ -20,7 +20,7 @@ def process_rollout(rollout, gamma, lambda_=1.0):
 given a rollout, compute its returns and the advantage
 """
     batch_si = np.asarray(rollout.states)
-    batch_a = np.asarray(rollout.actions)
+    batch_a = np.vstack(rollout.actions)
     rewards = np.asarray(rollout.rewards)
     vpred_t = np.asarray(rollout.values + [rollout.r])
 
@@ -129,7 +129,7 @@ runner appends the policy to the queue.
             fetched = policy.act(last_state, *last_features)
             action, value_, features = fetched[0], fetched[1], fetched[2:]
             # argmax to convert from one-hot
-            state, reward, terminal, info = env.step(action.argmax())
+            state, reward, terminal, info = env.step(np.squeeze(action))
             if render:
                 env.render()
 
@@ -190,13 +190,11 @@ should be computed.
                 self.local_network = pi = LSTMPolicy(env.observation_space.shape, env.action_space)
                 pi.global_step = self.global_step
 
-            self.ac = tf.placeholder(tf.float32, [None, env.action_space.n], name="ac")
+            self.ac = tf.placeholder(tf.float32, [None, env.action_space.dim], name="ac")
             self.adv = tf.placeholder(tf.float32, [None], name="adv")
             self.r = tf.placeholder(tf.float32, [None], name="r")
 
-            log_prob_tf = tf.nn.log_softmax(pi.dist_params)
-            assert(log_prob_tf.get_shape() == [env.action_space.n],
-                   "{} != {}".format(log_prob_tf.get_shape(), [env.action_space.n]))
+            log_prob_tf = tf.nn.log_softmax(pi.dist_params)  # bsize, 1
             prob_tf = tf.nn.softmax(pi.dist_params)
             # log_prob_tf_ = pi.log_prob(self.ac)
             # assert(log_prob_tf.get_shape() == log_prob_tf_.get_shape(),
@@ -206,7 +204,20 @@ should be computed.
             # the "policy gradients" loss:  its derivative is precisely the policy gradient
             # notice that self.ac is a placeholder that is provided externally.
             # adv will contain the advantages, as calculated in process_rollout
-            pi_loss = - tf.reduce_sum(tf.reduce_sum(log_prob_tf * self.ac, [1]) * self.adv)
+            one_hot = tf.one_hot(tf.to_int32(self.ac), env.action_space.n)  # bsize, 1, 2
+            with tf.control_dependencies([tf.assert_equal(
+                tf.shape(log_prob_tf),
+                tf.shape(one_hot)
+            )]):
+                hot = log_prob_tf * one_hot
+
+            reduce_sum = tf.reduce_sum(hot, 2)
+            log_prob = tf.reduce_prod(reduce_sum, 1)
+            with tf.control_dependencies([tf.assert_equal(
+                    tf.shape(log_prob),
+                    tf.shape(self.adv)
+            )]):
+                pi_loss = - tf.reduce_sum(log_prob * self.adv)
 
             # loss of value function
             vf_loss = 0.5 * tf.reduce_sum(tf.square(pi.vf - self.r))

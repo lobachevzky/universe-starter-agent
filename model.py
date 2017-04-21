@@ -102,17 +102,15 @@ class LSTMPolicy(object):
             self.dist = tf.contrib.distributions.Beta(*split)
         else:
             max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)  # [bsize, 1, 1]
-            assert(max.get_shape()[1:] == [1, 1], "{} != {}".format(max.get_shape(), [1, 1]))
-            self.dist = tf.contrib.distributions.Categorical(logits=self.dist_params - max)  # [bsize, 1, 1]
+            self.dist = tf.contrib.distributions.Categorical(logits=self.dist_params - max)
+            # self.dist.sample() gives # [bsize, ac_space.dim]
 
-        self.dist_params = tf.reshape(self.dist_params, [-1, n_dist_params])  # TODO!
+        # self.dist_params = tf.reshape(self.dist_params, [-1, n_dist_params])  # TODO!
 
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        old_action = categorical_sample(self.dist_params, ac_space.n)[0, :]
-        hot = tf.one_hot(self.dist.sample(), ac_space.n)
-        self.action = tf.squeeze(hot)
-        assert(self.action.get_shape() == old_action.get_shape(),
-               "{} != {}".format(self.action.get_shape(), old_action.get_shape()))
+        # old_action = categorical_sample(self.dist_params, ac_space.n)[0, :]
+        # hot = tf.one_hot(self.dist.sample(), ac_space.n)
+        self.action = self.dist.sample()  # [bsize, ac_space.dim]
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
         self.ac_space = ac_space
 
