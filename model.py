@@ -59,8 +59,10 @@ class LSTMPolicy(object):
         if len(list(ob_space)) > 1:
             for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
+
+    # TODO
         # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
-        x = tf.expand_dims(flatten(x), [0])
+        # x = tf.expand_dims(flatten(x), [0])
 
         size = 256
         if use_tf100_api:
@@ -81,20 +83,27 @@ class LSTMPolicy(object):
             state_in = rnn.LSTMStateTuple(c_in, h_in)
         else:
             state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
-        lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-            lstm, x, initial_state=state_in, sequence_length=step_size,
-            time_major=False)
-        lstm_c, lstm_h = lstm_state
-        x = tf.reshape(lstm_outputs, [-1, size])
+
+    # TODO
+        # lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+        #     lstm, x, initial_state=state_in, sequence_length=step_size,
+        #     time_major=False)
+
+        lstm_c, lstm_h = state_in # lstm_state
+    # TODO
+        # x = tf.reshape(lstm_outputs, [-1, size])
+
+        h = tf.nn.elu(linear(x, 60, 'h1'))
+        h = tf.nn.elu(linear(h, 60, 'h2'))
 
         if ac_space.is_continuous:
             n_dist_params = 2
         else:
             n_dist_params = ac_space.n
 
-        self.dist_params = linear(x, ac_space.dim * n_dist_params, "action", normalized_columns_initializer(0.01))
+        self.dist_params = linear(h, ac_space.dim * n_dist_params, "action", normalized_columns_initializer(0.01))
         self.dist_params = tf.reshape(self.dist_params, [-1, ac_space.dim, n_dist_params])
-        self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
+        self.vf = tf.reshape(linear(h, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
         if ac_space.is_continuous:
             self.dist_params = tf.nn.relu(self.dist_params)  # alpha and beta are positive
