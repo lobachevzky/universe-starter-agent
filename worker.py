@@ -21,6 +21,9 @@ logger.setLevel(logging.INFO)
 class FastSaver(tf.train.Saver):
     def save(self, sess, save_path, global_step=None, latest_filename=None,
              meta_graph_suffix="meta", write_meta_graph=True):
+        print('ssssssssssssssssssssssssssssssssssssss')
+        print(save_path)
+        print('ssssssssssssssssssssssssssssssssssssss')
         super(FastSaver, self).save(sess, save_path, global_step, latest_filename,
                                     meta_graph_suffix, False)
 

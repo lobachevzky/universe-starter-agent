@@ -63,7 +63,7 @@ class Policy(object):
             for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
 
-        h = self.network(x)
+        h = self.network(flatten(x))
 
         if ac_space.is_continuous:
             n_dist_params = 2
@@ -113,7 +113,6 @@ class Policy(object):
 
 class MLPpolicy(Policy):
     def network(self, x):
-        x = flatten(x)
         size1, size2 = 60, 60
         h = tf.nn.elu(linear(x, size1, 'h1'))
         return tf.nn.elu(linear(h, size2, 'h2'))
@@ -133,7 +132,7 @@ class MLPpolicy(Policy):
 
 class LSTMpolicy(Policy):
     def network(self, x):
-        x = tf.expand_dims(flatten(x), [0])
+        x = tf.expand_dims(x, [0])
         size = 256
         if use_tf100_api:
             lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
