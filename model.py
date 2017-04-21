@@ -113,6 +113,7 @@ class Policy(object):
 
 class MLPpolicy(Policy):
     def network(self, x):
+        x = flatten(x)
         size1, size2 = 60, 60
         h = tf.nn.elu(linear(x, size1, 'h1'))
         return tf.nn.elu(linear(h, size2, 'h2'))
