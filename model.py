@@ -70,20 +70,23 @@ class Policy(object):
         else:
             n_dist_params = ac_space.n
 
-        self.dist_params = linear(h, ac_space.dim * n_dist_params, "action", normalized_columns_initializer(0.01))
-        self.dist_params = tf.reshape(self.dist_params, [-1, ac_space.dim, n_dist_params])
+        self.dist_params = linear(h, ac_space.dim() * n_dist_params, "action", normalized_columns_initializer(0.01))
+        self.dist_params = tf.reshape(self.dist_params, [-1, ac_space.dim(), n_dist_params])
         self.vf = tf.reshape(linear(h, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
         if ac_space.is_continuous:
+            print('GOING WITH CONTINUOUS')
             self.dist_params = tf.nn.relu(self.dist_params)  # alpha and beta are positive
             split = tf.unstack(self.dist_params, axis=2)
             self.dist = tf.contrib.distributions.Beta(*split)
+            self.action = self.dist.sample()  # [bsize, ac_space.dim]
         else:
             max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)  # [bsize, 1, 1]
-            self.dist = tf.contrib.distributions.Categorical(logits=self.dist_params - max)
+            logits = self.dist_params - max
+            self.dist = tf.contrib.distributions.Categorical(logits=logits)
+            self.action = tf.squeeze(self.dist.sample())  # [bsize, ac_space.dim]
             # self.dist.sample() gives # [bsize, ac_space.dim]
 
-        self.action = self.dist.sample()  # [bsize, ac_space.dim]
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
         self.ac_space = ac_space
 
@@ -164,6 +167,7 @@ class LSTMpolicy(Policy):
 
     def act(self, ob, c, h):
         sess = tf.get_default_session()
+        # ob = ob.reshape(-1, *self.x.get_shape()[1:])
         return sess.run([self.action, self.vf] + self.state_out,
                         {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})
 

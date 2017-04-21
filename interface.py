@@ -16,7 +16,7 @@ class Space:
     def is_continuous(self):
         pass
 
-    @abstractproperty
+    @abstractmethod
     def dim(self):
         """
         :return: dimension of action (for Box, this is the number of elements in self.shape())
@@ -56,8 +56,8 @@ class Box(Space):
         """
         pass
 
-    @abstractproperty
-    def shape(self):
+    @abstractmethod
+    def dim(self):
         """
         :return: array of dimensions
         """
@@ -75,7 +75,7 @@ class Discrete(Space):
     def is_continuous(self):
         return False
 
-    @abstractproperty
+    @abstractmethod
     def dim(self):
         pass
 
@@ -129,7 +129,7 @@ gym.Env.is_gazebo = False
 # Box
 gym.spaces.Box.is_discrete = False
 gym.spaces.Box.is_continuous = True
-# gym.spaces.Box.dim = eval('self.low.size')
+gym.spaces.Box.dim = lambda self: self.low.size
 # gym.spaces.Box.shape = lambda self: tuple(int(.5 * x) for x in self.low.shape[:2]) + (3,)
 # gym.spaces.Box.shape = eval('self.low.shape')
 
@@ -139,7 +139,7 @@ gym.spaces.Box.is_continuous = True
 # Discrete
 gym.spaces.Discrete.is_discrete = True
 gym.spaces.Discrete.is_continuous = False
-gym.spaces.Discrete.dim = 1  # for some reason, gym[atari] allow only one button press per time step
+gym.spaces.Discrete.dim = lambda _: 1  # for some reason, gym[atari] allow only one button press per time step
 
 gym.Env.max_time = lambda self: self.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
 

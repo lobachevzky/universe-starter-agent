@@ -129,7 +129,7 @@ runner appends the policy to the queue.
             fetched = policy.act(last_state, *last_features)
             action, value_, features = fetched[0], fetched[1], fetched[2:]
             # argmax to convert from one-hot
-            state, reward, terminal, info = env.step(np.squeeze(action))
+            state, reward, terminal, info = env.step(action)
             if render:
                 env.render()
 
@@ -177,10 +177,12 @@ should be computed.
 
         self.env = env
         self.task = task
-        policy = LSTMpolicy
+        policy = MLPpolicy
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
+                np.savetxt('/tmp/ob_space.txt', env.observation_space.low)
+                np.savetxt('/tmp/ob_space_shape.txt', env.observation_space.low.shape)
                 self.network = policy(env.observation_space.shape, env.action_space)
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
@@ -191,7 +193,7 @@ should be computed.
                 self.local_network = pi = policy(env.observation_space.shape, env.action_space)
                 pi.global_step = self.global_step
 
-            self.ac = tf.placeholder(tf.float32, [None, env.action_space.dim], name="ac")
+            self.ac = tf.placeholder(tf.float32, [None, env.action_space.dim()], name="ac")
             self.adv = tf.placeholder(tf.float32, [None], name="adv")
             self.r = tf.placeholder(tf.float32, [None], name="r")
 

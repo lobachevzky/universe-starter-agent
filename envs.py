@@ -27,7 +27,7 @@ def create_env(env_id, client_id, remotes, **kwargs):
         return create_flash_env(env_id, client_id, remotes, **kwargs)
     elif spec.tags.get('atari', False) and spec.tags.get('vnc', False):
         return create_vncatari_env(env_id, client_id, remotes, **kwargs)
-    elif spec.id == 'CartPole-v0':
+    elif spec.id in ['CartPole-v0', 'Pendulum-v0']:
         return create_classic_env(env_id)
     else:
         # Assume atari.
