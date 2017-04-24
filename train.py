@@ -31,18 +31,19 @@ def new_cmd(session, name, cmd, mode, logdir, shell):
     elif mode == 'child':
         return name, "{} >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(cmd, logdir, session, name, logdir)
     elif mode == 'nohup':
-        return name, "nohup {} -c {} >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(shell, shlex_quote(cmd), logdir, session, name, logdir)
+        return name, "nohup {} -c {} >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(shell, shlex_quote(cmd),
+                                                                                            logdir, session, name,
+                                                                                            logdir)
 
 
 def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash', mode='tmux', visualise=False):
     # for launching the TF workers and for launching tensorboard
-    docker_cmd = "docker run -i --rm --net=host ardrone".split()
     base_cmd = [
-    'CUDA_VISIBLE_DEVICES=',
-    sys.executable, 'worker.py',
-    '--log-dir', logdir,
-    '--env-id', env_id,
-    '--num-workers', str(num_workers)]
+        'CUDA_VISIBLE_DEVICES=',
+        sys.executable, 'worker.py',
+        '--log-dir', logdir,
+        '--env-id', env_id,
+        '--num-workers', str(num_workers)]
 
     if visualise:
         base_cmd += ['--visualise']
@@ -56,20 +57,25 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
     cmds_map = [new_cmd(session, "ps", base_cmd + ["--job-name", "ps"], mode, logdir, shell)]
     for i in range(num_workers):
         if env_id == 'gazebo':
-            launchxvfb = 'rosrun a3c xvfb-launch.sh {} {} {} {} false'.format(logdir, num_workers, i, remotes[i]).split()
-            cmd = docker_cmd + launchxvfb + ['false']  # TODO: can we get rid of this using xvfb-run?
-        # if i == 0:
-        #     base_cmd = "docker run -i --rm --net=host ardrone " \
-        #                "/usr/bin/python worker.py " \
-        #                "--log-dir cartpole " \
-        #                "--env-id CartPole-v0 " \
-        #                "--num-workers 1 " \
-        #                "--job-name worker" \
-        #         .split()
+
+            docker_cmd = ['docker run -it',
+                          '--rm',
+                          '--name=worker{}'.format(i),
+                          '--net=host']
+            image = 'ardrone'
+            cmd_arg = '/xvfb-launch.sh {}/ardrone 1 0 1 false'.format(os.getcwd())
+            if mode == 'tmux':
+                rest_of_cmd = [image, cmd_arg]
+            else:
+                rest_of_cmd = ['--detach', image, cmd_arg,
+                               '& echo docker kill worker{} >> {}/kill.sh'.format(i, logdir)]
+            docker_cmd += rest_of_cmd
+
+            join = ' '.join(docker_cmd)
+            cmds_map += [('w-{}'.format(i), join)]
         else:
             cmd = base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]]
-        cmds_map += [new_cmd(session,
-            "w-%d" % i, cmd, mode, logdir, shell)]
+            cmds_map += [new_cmd(session, "w-{:d}".format(i), cmd, mode, logdir, shell)]
 
     cmds_map += [new_cmd(session, "tb", ["tensorboard", "--logdir", logdir, "--port", "12345"], mode, logdir, shell)]
     if mode == 'tmux':
@@ -80,7 +86,8 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
     notes = []
     cmds = [
         "mkdir -p {}".format(logdir),
-        "echo {} {} > {}/cmd.sh".format(sys.executable, ' '.join([shlex_quote(arg) for arg in sys.argv if arg != '-n']), logdir),
+        "echo {} {} > {}/cmd.sh".format(sys.executable, ' '.join([shlex_quote(arg) for arg in sys.argv if arg != '-n']),
+                                        logdir),
     ]
     if mode == 'nohup' or mode == 'child':
         cmds += ["echo '#!/bin/sh' >{}/kill.sh".format(logdir)]
@@ -94,10 +101,11 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
 
     if mode == 'tmux':
         cmds += [
-        "kill $( lsof -i:12345 -t ) > /dev/null 2>&1",  # kill any process using tensorboard's port
-        "kill $( lsof -i:12222-{} -t ) > /dev/null 2>&1".format(num_workers+12222), # kill any processes using ps / worker ports
-        "tmux kill-session -t {}".format(session),
-        "tmux new-session -s {} -n {} -d {}".format(session, windows[0], shell)
+            "kill $( lsof -i:12345 -t ) > /dev/null 2>&1",  # kill any process using tensorboard's port
+            "kill $( lsof -i:12222-{} -t ) > /dev/null 2>&1".format(num_workers + 12222),
+            # kill any processes using ps / worker ports
+            "tmux kill-session -t {}".format(session),
+            "tmux new-session -s {} -n {} -d {}".format(session, windows[0], shell)
         ]
         for w in windows[1:]:
             cmds += ["tmux new-window -t {} -n {} {}".format(session, w, shell)]
@@ -110,7 +118,8 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
 
 def run():
     args = parser.parse_args()
-    cmds, notes = create_commands("a3c", args.num_workers, args.remotes, args.env_id, args.log_dir, mode=args.mode, visualise=args.visualise)
+    cmds, notes = create_commands("a3c", args.num_workers, args.remotes, args.env_id, args.log_dir, mode=args.mode,
+                                  visualise=args.visualise)
     if args.dry_run:
         print("Dry-run mode due to -n flag, otherwise the following commands would be executed:")
     else:

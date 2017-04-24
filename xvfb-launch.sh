@@ -4,6 +4,9 @@ echo ------------------------------------------------------------------
 echo Xvfb :1 -screen 0 1600x1200x16  &
 Xvfb :1 -screen 0 1600x1200x16  &
 echo ------------------------------------------------------------------
+echo source /opt/ros/kinetic/setup.bash
+source /opt/ros/kinetic/setup.bash
+echo ------------------------------------------------------------------
 echo source /catkin/devel/setup.bash
 source /catkin/devel/setup.bash
 echo ------------------------------------------------------------------
