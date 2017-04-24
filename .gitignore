@@ -90,3 +90,9 @@ ENV/
 .idea/
 .idea
 cartpole/train
+ardrone/a3c.ps.out
+ardrone/a3c.tb.out
+ardrone/cmd.sh
+ardrone/kill.sh
+ardrone/train
+ardrone/train_0
