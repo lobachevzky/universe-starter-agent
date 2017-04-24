@@ -177,7 +177,7 @@ class Gazebo(Env):
         self._land_publisher.publish(msg.Empty())
 
     def max_time(self):
-        return 30
+        return 300
 
     @property
     def _images(self):

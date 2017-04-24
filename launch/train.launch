@@ -1,10 +1,18 @@
 <launch>
     <arg name="gui" default="true" />
-    <include file="$(find a3c)/launch/driver.launch">
-      <arg name="gui" default="$(arg gui)" />
+
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+      <arg name="world_name" value="$(find a3c)/worlds/maze.world"/>
+      <arg name="gui" value="$(arg gui)"/>
     </include>
 
-    <arg name="model" default="$(find ardrone_sim)/urdf/quadrotor.urdf.xacro"/>
+
+     <!--Spawn simulated quadrotor uav -->
+    <include file="$(find cvg_sim_gazebo)/launch/spawn_quadrotor.launch" >
+      <arg name="model" value="$(find cvg_sim_gazebo)/urdf/quadrotor_sensors.urdf.xacro"/> 
+    </include>
+
+    <arg name="model" default="$(find cvg_sim_gazebo)/urdf/quadrotor.urdf.xacro"/>
     <arg name="restore" default="False" />
     <arg name="log-dir" default="/tmp/" />
     <arg name="num_workers" default="" />
@@ -17,25 +25,25 @@
     <param name="images_to_skip" type="int" value="0"/>
     <param name="restore" type="bool" value="$(arg restore)"/>
 
-    <!--<node name="agent_node"-->
-      <!--pkg="a3c"-->
-      <!--type="random_agent.py"-->
-      <!--output="screen"-->
-      <!--required="true"-->
-    <!--/>-->
-
     <node name="agent_node"
       pkg="a3c"
-      type="worker.py"
+      type="random_agent.py"
       output="screen"
       required="true"
-      args='--log-dir $(arg log-dir)
-            --env-id gazebo 
-            --job-name worker
-            --num-workers $(arg num_workers)
-            --task $(arg i)
-            --remotes $(arg remotes)'
     />
+
+    <!--<node name="agent_node"-->
+      <!--pkg="a3c"-->
+      <!--type="worker.py"-->
+      <!--output="screen"-->
+      <!--required="true"-->
+      <!--args='%%log-dir $(arg log-dir)-->
+            <!--%%env-id gazebo -->
+            <!--%%job-name worker-->
+            <!--%%num-workers $(arg num_workers)-->
+            <!--%%task $(arg i)-->
+            <!--%%remotes $(arg remotes)'-->
+    <!--/>-->
 
     <!--<node name="agent_node"-->
       <!--pkg="a3c"-->
