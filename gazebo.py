@@ -177,13 +177,13 @@ class Gazebo(Env):
         self._land_publisher.publish(msg.Empty())
 
     def max_time(self):
-        return 300
+        return 30
 
     @property
     def _images(self):
         assert self._image_queue.full()
         images = concat_images(list(self._image_queue.queue), self._cv_bridge)
-        return np.expand_dims(images, 0)  # for convolutions
+        return np.expand_dims(images, 3)  # for convolutions
 
     @property
     def action_space(self):

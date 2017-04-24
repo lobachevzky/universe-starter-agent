@@ -24,26 +24,26 @@
       <!--required="true"-->
     <!--/>-->
 
-    <!--<node name="agent_node"-->
-      <!--pkg="a3c"-->
-      <!--type="worker.py"-->
-      <!--output="log"-->
-      <!--required="true"-->
-      <!--args='==log-dir $(arg log-dir)-->
-            <!--==env-id gazebo -->
-            <!--==job-name worker-->
-            <!--==num-workers $(arg num_workers)-->
-            <!--==task $(arg i)-->
-            <!--==remotes $(arg remotes)'-->
-    <!--/>-->
-
     <node name="agent_node"
       pkg="a3c"
       type="worker.py"
       output="screen"
       required="true"
-      args='--log-dir /tmp/ardrone
+      args='--log-dir $(arg log-dir)
             --env-id gazebo 
-            --job-name worker'
+            --job-name worker
+            --num-workers $(arg num_workers)
+            --task $(arg i)
+            --remotes $(arg remotes)'
     />
+
+    <!--<node name="agent_node"-->
+      <!--pkg="a3c"-->
+      <!--type="worker.py"-->
+      <!--output="screen"-->
+      <!--required="true"-->
+      <!--args='==log-dir /tmp/ardrone-->
+            <!--==env-id gazebo -->
+            <!--==job-name worker'-->
+    <!--/>-->
 </launch>
