@@ -36,12 +36,13 @@ def new_cmd(session, name, cmd, mode, logdir, shell):
 
 def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash', mode='tmux', visualise=False):
     # for launching the TF workers and for launching tensorboard
+    docker_cmd = "docker run -i --rm --net=host ardrone".split()
     base_cmd = [
-        'CUDA_VISIBLE_DEVICES=',
-        sys.executable, 'worker.py',
-        '--log-dir', logdir,
-        '--env-id', env_id,
-        '--num-workers', str(num_workers)]
+    'CUDA_VISIBLE_DEVICES=',
+    sys.executable, 'worker.py',
+    '--log-dir', logdir,
+    '--env-id', env_id,
+    '--num-workers', str(num_workers)]
 
     if visualise:
         base_cmd += ['--visualise']
@@ -54,6 +55,9 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
 
     cmds_map = [new_cmd(session, "ps", base_cmd + ["--job-name", "ps"], mode, logdir, shell)]
     for i in range(num_workers):
+        if env_id == 'gazebo':
+            launchxvfb = 'rosrun a3c xvfb-launch.sh {} {} {} {} false'.format(logdir, num_workers, i, remotes[i]).split()
+            cmd = docker_cmd + launchxvfb + ['false']  # TODO: can we get rid of this using xvfb-run?
         # if i == 0:
         #     base_cmd = "docker run -i --rm --net=host ardrone " \
         #                "/usr/bin/python worker.py " \
@@ -62,8 +66,10 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
         #                "--num-workers 1 " \
         #                "--job-name worker" \
         #         .split()
+        else:
+            cmd = base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]]
         cmds_map += [new_cmd(session,
-            "w-%d" % i, base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]], mode, logdir, shell)]
+            "w-%d" % i, cmd, mode, logdir, shell)]
 
     cmds_map += [new_cmd(session, "tb", ["tensorboard", "--logdir", logdir, "--port", "12345"], mode, logdir, shell)]
     if mode == 'tmux':
