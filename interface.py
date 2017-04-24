@@ -95,6 +95,13 @@ class Env:
         pass
 
     @abstractproperty
+    def metadata(self):
+        """
+        For CartPole-v0 this is `{'video.frames_per_second': 50, 'render.modes': ['human', 'rgb_array']}`
+        """
+        pass
+
+    @abstractproperty
     def max_time(self):
         """
         simulation automatically terminates after this many steps. Int or None.

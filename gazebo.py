@@ -192,3 +192,7 @@ class Gazebo(Env):
     @property
     def observation_space(self):
         return self._observation_space
+
+    @property
+    def metadata(self):
+        return {}

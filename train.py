@@ -58,9 +58,10 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
     for i in range(num_workers):
         if env_id == 'gazebo':
 
+            name = 'worker{}'.format(i)
             docker_cmd = ['docker run -it',
                           '--rm',
-                          '--name=worker{}'.format(i),
+                          '--name={}'.format(name),
                           '--net=host']
             image = 'ardrone'
             cmd_arg = '/xvfb-launch.sh {}/ardrone 1 0 1 false'.format(os.getcwd())
@@ -68,11 +69,10 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
                 rest_of_cmd = [image, cmd_arg]
             else:
                 rest_of_cmd = ['--detach', image, cmd_arg,
-                               '& echo docker kill worker{} >> {}/kill.sh'.format(i, logdir)]
+                               '& echo docker kill {} >> {}/kill.sh'.format(name, logdir)]
             docker_cmd += rest_of_cmd
 
-            join = ' '.join(docker_cmd)
-            cmds_map += [('w-{}'.format(i), join)]
+            cmds_map += [('w-{}'.format(i), ' '.join(docker_cmd))]
         else:
             cmd = base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]]
             cmds_map += [new_cmd(session, "w-{:d}".format(i), cmd, mode, logdir, shell)]
@@ -124,7 +124,7 @@ def run():
         print("Dry-run mode due to -n flag, otherwise the following commands would be executed:")
     else:
         print("Executing the following commands:")
-    print("\n".join(cmds))
+    print("\n\n".join(cmds))
     print("")
     if not args.dry_run:
         if args.mode == "tmux":
