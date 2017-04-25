@@ -10,6 +10,6 @@ echo ------------------------------------------------------------------
 echo source /catkin/devel/setup.bash
 source /catkin/devel/setup.bash
 echo ------------------------------------------------------------------
-echo roslaunch a3c train.launch log-dir:=$1 num_workers:=$2 i:=$3 remotes:=$4 gui:=$5
+echo roslaunch a3c train.launch gui:=$1 worker-args:="$2"
+roslaunch a3c train.launch gui:=$1 worker-args:="$2"
 echo ------------------------------------------------------------------
-roslaunch a3c train.launch log-dir:=$1 num_workers:=$2 task:=$3 remotes:=$4 gui:=$5

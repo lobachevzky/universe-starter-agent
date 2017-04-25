@@ -1,55 +1,58 @@
 <launch>
-    <arg name="gui" default="true" />
+    <arg name='gui' default='true' />
 
-    <include file="$(find gazebo_ros)/launch/empty_world.launch">
-      <arg name="world_name" value="$(find a3c)/worlds/maze.world"/>
-      <arg name="gui" value="$(arg gui)"/>
+    <include file='$(find gazebo_ros)/launch/empty_world.launch'>
+      <arg name='world_name' value='$(find a3c)/worlds/maze.world'/>
+      <arg name='gui' value='$(arg gui)'/>
     </include>
 
 
      <!--Spawn simulated quadrotor uav -->
-    <include file="$(find cvg_sim_gazebo)/launch/spawn_quadrotor.launch" >
-      <arg name="model" value="$(find cvg_sim_gazebo)/urdf/quadrotor_sensors.urdf.xacro"/> 
+    <include file='$(find cvg_sim_gazebo)/launch/spawn_quadrotor.launch' >
+      <arg name='model' value='$(find cvg_sim_gazebo)/urdf/quadrotor_sensors.urdf.xacro'/>
     </include>
 
-    <arg name="model" default="$(find cvg_sim_gazebo)/urdf/quadrotor.urdf.xacro"/>
-    <arg name="restore" default="False" />
-    <arg name="log-dir" default="/tmp/" />
-    <arg name="num_workers" default="" />
-    <arg name="task" default="" />
-    <arg name="remotes" default="" />
+    <arg name='model' default='$(find cvg_sim_gazebo)/urdf/quadrotor.urdf.xacro'/>
+    <arg name='restore' default='False' />
 
-    <param name="controller_rate" type="double" value="10.0"/>
-    <param name="num_images" type="int" value="4"/>
-    <param name="image_scale" type="double" value="1"/>
-    <param name="images_to_skip" type="int" value="0"/>
-    <param name="restore" type="bool" value="$(arg restore)"/>
+    <arg name='worker-args' default='' />
+    <!--<arg name='task' default='' />-->
+    <!--<arg name='num_workers' default='' />-->
+    <!--<arg name='log-dir' default='/tmp/' />-->
+    <!--<arg name='remotes' default='' />-->
 
-    <!--<node name="agent_node"-->
-      <!--pkg="a3c"-->
-      <!--type="random_agent.py"-->
-      <!--output="screen"-->
-      <!--required="true"-->
+    <param name='controller_rate' type='double' value='10.0'/>
+    <param name='num_images' type='int' value='4'/>
+    <param name='image_scale' type='double' value='1'/>
+    <param name='images_to_skip' type='int' value='0'/>
+    <param name='restore' type='bool' value='$(arg restore)'/>
+
+    <!--<node name='agent_node'-->
+      <!--pkg='a3c'-->
+      <!--type='random_agent.py'-->
+      <!--output='screen'-->
+      <!--required='true'-->
     <!--/>-->
 
-    <node name="agent_node"
-      pkg="a3c"
-      type="worker.py"
-      output="screen"
-      required="true"
-      args='--log-dir $(arg log-dir)
-            --env-id gazebo 
-            --job-name worker
-            --num-workers $(arg num_workers)
-            --task $(arg task)
-            --remotes $(arg remotes)'
+    <node name='agent_node'
+      pkg='a3c'
+      type='worker.py'
+      output='screen'
+      required='true'
+      args='$(arg worker-args)'
     />
+    <!--args='&#45;&#45;log-dir $(arg log-dir)-->
+    <!--&#45;&#45;env-id gazebo -->
+    <!--&#45;&#45;job-name worker-->
+    <!--&#45;&#45;num-workers $(arg num_workers)-->
+    <!--&#45;&#45;task $(arg task)-->
+    <!--&#45;&#45;remotes $(arg remotes)'-->
 
-    <!--<node name="agent_node"-->
-      <!--pkg="a3c"-->
-      <!--type="worker.py"-->
-      <!--output="screen"-->
-      <!--required="true"-->
+    <!--<node name='agent_node'-->
+      <!--pkg='a3c'-->
+      <!--type='worker.py'-->
+      <!--output='screen'-->
+      <!--required='true'-->
       <!--args='==log-dir /tmp/ardrone-->
             <!--==env-id gazebo -->
             <!--==job-name worker'-->
