@@ -82,12 +82,13 @@ class Policy(object):
         self.vf = tf.reshape(linear(h, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
         if ac_space.is_continuous:
-            self.dist_params = tf.nn.softplus(self.dist_params)  # alpha and beta are positive
+            # self.dist_params = tf.nn.softplus(self.dist_params)  # alpha and beta are positive
             self.dist_params = tf.verify_tensor_all_finite(self.dist_params, 'after softplus')
-            split = tf.unstack(self.dist_params, axis=2)
-            self.dist = tf.contrib.distributions.Beta(*split)
+            mean, stdev = tf.unstack(self.dist_params, axis=2)
+            self.dist = tf.contrib.distributions.Normal(mean, tf.nn.softplus(stdev))
             self.action = tf.reshape(self.dist.sample(), ac_space.shape)
             self.action = tf.verify_tensor_all_finite(self.action, 'action')
+            self.action = ac_space.low + (ac_space.high - ac_space.low) * self.action
             # self.action = self.dist.sample()  # [bsize, ac_space.dim]
         else:
             max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)  # [bsize, 1, 1]
@@ -99,10 +100,10 @@ class Policy(object):
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
         self.ac_space = ac_space
 
-    def log_prob(self, action):
+    def log_prob(self, actions):
         if self.ac_space.is_discrete:
-            action = tf.to_int32(action)
-        return tf.reduce_prod(self.dist.log_prob(action), axis=1)
+            actions = tf.to_int32(actions)
+        return tf.reduce_sum(self.dist.log_prob(actions), axis=1)
 
     @abc.abstractmethod
     def get_initial_features(self):
