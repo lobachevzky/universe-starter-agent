@@ -65,8 +65,8 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
     for i in range(num_workers):
         if env_id == 'gazebo':
             if spec_path:
-                with open(spec_path, 'r') as stream:
-                    spec = yaml.load(stream)
+                with open(spec_path, 'r') as f:
+                    spec = f.read()
             else:
                 raise Exception('Cannot run gazebo env without spec file')
             name = 'w-{}'.format(i)
@@ -82,8 +82,8 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
                        '--env-id {} '.format(env_id) +
                        '--num-workers {} '.format(num_workers) +
                        '--task {} '.format(i) +
-                       '--remote {}'.format(remotes[i]) +
-                       '--spec {}'.format(spec) +
+                       '--remote {} '.format(remotes[i]) +
+                       '--spec \'{}\' '.format(spec) +
                        '\"')
             if mode == 'tmux':
                 rest_of_cmd = [image, cmd_arg]

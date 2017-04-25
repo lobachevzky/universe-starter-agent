@@ -91,7 +91,7 @@ def run(args, server):
     logger.info('reached %s steps. worker stopped.', global_step)
 
 
-def cluster_spec(num_workers, num_ps, host):
+def cluster_spec(num_workers, num_ps):
     """
 More tensorflow setup for data parallelism
     :param host:
@@ -100,6 +100,7 @@ More tensorflow setup for data parallelism
     port = 12222
 
     all_ps = []
+    host = '127.0.0.1'
     for _ in range(num_ps):
         all_ps.append('{}:{}'.format(host, port))
         port += 1
@@ -138,9 +139,13 @@ Setting up Tensorflow for data parallel work
 
     (args, _) = parser.parse_known_args()
     if args.spec is None:
-        spec = cluster_spec(args.num_workers, 1, args.host)
+        spec = cluster_spec(args.num_workers, 1)
     else:
         spec = dict(args.spec)
+    with open('/tmp/shit.txt', 'w') as f:
+        f.write(args.spec)
+    exit()
+
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
     def shutdown(signal, frame):
