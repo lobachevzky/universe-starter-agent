@@ -125,8 +125,8 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
     parser.add_argument('--log-dir', default='/tmp/pong', help='Log directory path')
     parser.add_argument('--env-id', default='PongDeterministic-v3', help='Environment id')
-    parser.add_argument('--host', default='127.0.0.1'
-                        , help='ip address for parameter sever (docker0 if gazebo)')
+    parser.add_argument('--spec', default=None, type=str,
+                        help='JSON object with input to tf.Train.ClusterSpec')
     parser.add_argument('-r', '--remotes', default=None,
                         help='References to environments to create (e.g. -r 20), '
                              'or the address of pre-existing VNC servers and '
@@ -137,14 +137,10 @@ Setting up Tensorflow for data parallel work
                         help="Visualise the gym environment by running env.render() between each timestep")
 
     (args, _) = parser.parse_known_args()
-    # import rospy
-    # rospy.loginfo('jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj')
-    # rospy.loginfo(args)
-    # with open('/tmp/shit.txt', 'w') as f:
-    #     f.write(str(args))
-    # rospy.loginfo('jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj')
-    # exit()
-    spec = cluster_spec(args.num_workers, 1, args.host)
+    if args.spec is None:
+        spec = cluster_spec(args.num_workers, 1, args.host)
+    else:
+        spec = dict(args.spec)
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
     def shutdown(signal, frame):
@@ -160,8 +156,8 @@ Setting up Tensorflow for data parallel work
                                  config=tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=2))
         run(args, server)
     else:
-        server = tf.train.Server(cluster, job_name="ps", task_index=args.task,
-                                 config=tf.ConfigProto(device_filters=["/job:ps"]))
+        tf.train.Server(cluster, job_name="ps", task_index=args.task,
+                        config=tf.ConfigProto(device_filters=["/job:ps"]))
         while True:
             time.sleep(1000)
 
