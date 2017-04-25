@@ -1,7 +1,9 @@
+from __future__ import print_function
+
 import argparse
 import os
+import pprint
 import sys
-from six.moves import shlex_quote
 
 parser = argparse.ArgumentParser(description="Run commands")
 parser.add_argument('-w', '--num-workers', default=1, type=int,
@@ -16,7 +18,8 @@ parser.add_argument('-l', '--log-dir', type=str, default="/tmp/pong",
 parser.add_argument('-n', '--dry-run', action='store_true',
                     help="Print out commands rather than executing them")
 parser.add_argument('-m', '--mode', type=str, default='tmux',
-                    help="tmux: run workers in a tmux session. nohup: run workers with nohup. child: run workers as child processes")
+                    help="tmux: run workers in a tmux session. nohup: run workers with nohup. child: run workers as "
+                         "child processes")
 
 # Add visualise tag
 parser.add_argument('--visualise', action='store_true',
@@ -25,13 +28,13 @@ parser.add_argument('--visualise', action='store_true',
 
 def new_cmd(session, name, cmd, mode, logdir, shell):
     if isinstance(cmd, (list, tuple)):
-        cmd = " ".join(shlex_quote(str(v)) for v in cmd)
+        cmd = " ".join(map(str, cmd))
     if mode == 'tmux':
-        return name, "tmux send-keys -t {}:{} {} Enter".format(session, name, shlex_quote(cmd))
+        return name, "tmux send-keys -t {}:{} '{}' Enter".format(session, name, cmd)
     elif mode == 'child':
         return name, "{} >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(cmd, logdir, session, name, logdir)
     elif mode == 'nohup':
-        return name, "nohup {} -c {} >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(shell, shlex_quote(cmd),
+        return name, "nohup {} -c '{}' >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(shell, cmd,
                                                                                             logdir, session, name,
                                                                                             logdir)
 
@@ -58,7 +61,7 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
     for i in range(num_workers):
         if env_id == 'gazebo':
 
-            name = 'worker{}'.format(i)
+            name = 'w-{}'.format(i)
             docker_cmd = ['docker run -it',
                           '--rm',
                           '--name={}'.format(name),
@@ -67,12 +70,17 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
             cmd_arg = '/xvfb-launch.sh {}/ardrone 1 0 1 false'.format(os.getcwd())
             if mode == 'tmux':
                 rest_of_cmd = [image, cmd_arg]
+                cmd = new_cmd(session, name, docker_cmd + rest_of_cmd, mode, logdir, shell)
             else:
-                rest_of_cmd = ['--detach', image, cmd_arg,
-                               '& echo docker kill {} >> {}/kill.sh'.format(name, logdir)]
-            docker_cmd += rest_of_cmd
+                rest_of_cmd = [
+                    '--detach', image, cmd_arg,
+                    '& echo docker kill {} >> {}/kill.sh'.format(name, logdir),
+                    '& echo \"docker logs -f --tail=30 {} | sed -e \'s/^/[-- {} --]/\' &\" >> {}/follow.sh'
+                        .format(name, name, logdir)
+                ]
+                cmd = (name, ' '.join(docker_cmd + rest_of_cmd))
 
-            cmds_map += [('w-{}'.format(i), ' '.join(docker_cmd))]
+            cmds_map += [cmd]
         else:
             cmd = base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]]
             cmds_map += [new_cmd(session, "w-{:d}".format(i), cmd, mode, logdir, shell)]
@@ -84,10 +92,10 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
     windows = [v[0] for v in cmds_map]
 
     notes = []
+    args_except_n = ' '.join(filter(lambda arg: arg != '-n', sys.argv))
     cmds = [
         "mkdir -p {}".format(logdir),
-        "echo {} {} > {}/cmd.sh".format(sys.executable, ' '.join([shlex_quote(arg) for arg in sys.argv if arg != '-n']),
-                                        logdir),
+        "echo {} {} > {}/cmd.sh".format(sys.executable, args_except_n, logdir),
     ]
     if mode == 'nohup' or mode == 'child':
         cmds += ["echo '#!/bin/sh' >{}/kill.sh".format(logdir)]
@@ -124,7 +132,7 @@ def run():
         print("Dry-run mode due to -n flag, otherwise the following commands would be executed:")
     else:
         print("Executing the following commands:")
-    print("\n\n".join(cmds))
+    print("\n".join(cmds))
     print("")
     if not args.dry_run:
         if args.mode == "tmux":

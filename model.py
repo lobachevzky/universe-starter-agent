@@ -44,7 +44,9 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
 
 def linear(x, size, name, initializer=None, bias_init=0):
     w = tf.get_variable(name + "/w", [x.get_shape()[1], size], initializer=initializer)
+    w = tf.verify_tensor_all_finite(w, 'w')
     b = tf.get_variable(name + "/b", [size], initializer=tf.constant_initializer(bias_init))
+    b = tf.verify_tensor_all_finite(b, 'b')
     return tf.matmul(x, w) + b
 
 
@@ -58,12 +60,16 @@ class Policy(object):
 
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
+        x = tf.verify_tensor_all_finite(x, 'initial x')
 
         if len(list(ob_space)) > 1:
             for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
+                x = tf.verify_tensor_all_finite(x, 'x after conv {}'.format(i))
 
+        x = tf.verify_tensor_all_finite(x, 'x after all convs')
         h = self.network(flatten(x))
+        h = tf.verify_tensor_all_finite(h, 'h3')
 
         if ac_space.is_continuous:
             n_dist_params = 2
@@ -71,14 +77,17 @@ class Policy(object):
             n_dist_params = ac_space.n
 
         self.dist_params = linear(h, ac_space.dim() * n_dist_params, "action", normalized_columns_initializer(0.01))
+        self.dist_params = tf.verify_tensor_all_finite(self.dist_params, 'dist_params')
         self.dist_params = tf.reshape(self.dist_params, [-1, ac_space.dim(), n_dist_params])
         self.vf = tf.reshape(linear(h, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
         if ac_space.is_continuous:
-            self.dist_params = tf.nn.softplus(self.dist_params) + 1  # alpha and beta are positive
+            self.dist_params = tf.nn.softplus(self.dist_params)  # alpha and beta are positive
+            self.dist_params = tf.verify_tensor_all_finite(self.dist_params, 'after softplus')
             split = tf.unstack(self.dist_params, axis=2)
             self.dist = tf.contrib.distributions.Beta(*split)
             self.action = tf.reshape(self.dist.sample(), ac_space.shape)
+            self.action = tf.verify_tensor_all_finite(self.action, 'action')
             # self.action = self.dist.sample()  # [bsize, ac_space.dim]
         else:
             max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)  # [bsize, 1, 1]
@@ -115,8 +124,15 @@ class Policy(object):
 class MLPpolicy(Policy):
     def network(self, x):
         size1, size2 = 60, 60
-        h = tf.nn.elu(linear(x, size1, 'h1'))
-        return tf.nn.elu(linear(h, size2, 'h2'))
+        linear1 = linear(x, size1, 'h1')
+        linear1 = tf.verify_tensor_all_finite(linear1, 'linear1')
+        h = tf.nn.elu(linear1)
+        h = tf.verify_tensor_all_finite(h, 'h2')
+        linear2 = linear(h, size2, 'h2')
+        linear2 = tf.verify_tensor_all_finite(linear2, 'linear2')
+        elu = tf.nn.elu(linear2)
+        elu = tf.verify_tensor_all_finite(elu, 'elu')
+        return elu
 
     def get_initial_features(self):
         return []
