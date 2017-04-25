@@ -69,11 +69,13 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
             image = 'ardrone'
             cmd_arg = ('/xvfb-launch.sh '
                        'false '  # gui
-                       '\"--log-dir {} '.format(os.path.join(os.getcwd(), 'ardrone')) +
+                       '\"'  # args for worker.py
+                       '--log-dir {} '.format(os.path.join(os.getcwd(), 'ardrone')) +
                        '--env-id {} '.format(env_id) +
                        '--num-workers {} '.format(num_workers) +
                        '--task {} '.format(i) +
-                       '--remote {}\"'.format(remotes[i]))
+                       '--remote {}'.format(remotes[i])) + \
+                       '\"'
             if mode == 'tmux':
                 rest_of_cmd = [image, cmd_arg]
                 cmd = new_cmd(session, name, docker_cmd + rest_of_cmd, mode, logdir, shell)

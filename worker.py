@@ -137,13 +137,6 @@ Setting up Tensorflow for data parallel work
                         help="Visualise the gym environment by running env.render() between each timestep")
 
     (args, _) = parser.parse_known_args()
-    # import rospy
-    # rospy.loginfo('jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj')
-    # rospy.loginfo(args)
-    # with open('/tmp/shit.txt', 'w') as f:
-    #     f.write(str(args))
-    # rospy.loginfo('jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj')
-    # exit()
     spec = cluster_spec(args.num_workers, 1, args.host)
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
