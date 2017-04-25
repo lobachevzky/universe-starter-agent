@@ -16,7 +16,7 @@
     <arg name="restore" default="False" />
     <arg name="log-dir" default="/tmp/" />
     <arg name="num_workers" default="" />
-    <arg name="i" default="" />
+    <arg name="task" default="" />
     <arg name="remotes" default="" />
 
     <param name="controller_rate" type="double" value="10.0"/>
@@ -41,7 +41,7 @@
             --env-id gazebo 
             --job-name worker
             --num-workers $(arg num_workers)
-            --task $(arg i)
+            --task $(arg task)
             --remotes $(arg remotes)'
     />
 

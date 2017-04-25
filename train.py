@@ -35,8 +35,8 @@ def new_cmd(session, name, cmd, mode, logdir, shell):
         return name, "{} >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(cmd, logdir, session, name, logdir)
     elif mode == 'nohup':
         return name, "nohup {} -c '{}' >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(shell, cmd,
-                                                                                            logdir, session, name,
-                                                                                            logdir)
+                                                                                              logdir, session, name,
+                                                                                              logdir)
 
 
 def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash', mode='tmux', visualise=False):
@@ -67,7 +67,13 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
                           '--name={}'.format(name),
                           '--net=host']
             image = 'ardrone'
-            cmd_arg = '/xvfb-launch.sh {}/ardrone 1 0 1 false'.format(os.getcwd())
+            cmd_arg = '/xvfb-launch.sh {log_dir} {num_workers} {task} {remotes} {gui}'.format(
+                log_dir=os.path.join(os.getcwd(), 'ardrone'),
+                num_workers=num_workers,
+                task=i,
+                remotes=remotes[i],
+                gui=False
+            )
             if mode == 'tmux':
                 rest_of_cmd = [image, cmd_arg]
                 cmd = new_cmd(session, name, docker_cmd + rest_of_cmd, mode, logdir, shell)
