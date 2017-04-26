@@ -32,11 +32,8 @@ class FastSaver(tf.train.Saver):
 
 
 def run(args, server):
-    print('11111111111111111111111111111111111111111111111111')
     env = create_env(args.env_id, client_id=str(args.task), remotes=args.remotes)
-    print('22222222222222222222222222222222222222222222222222')
     trainer = A3C(env, args.task, args.visualise)
-    print('33333333333333333333333333333333333333333333333333')
 
     # Variable names that start with "local" are not saved in checkpoints.
     if use_tf12_api:
@@ -67,7 +64,6 @@ def run(args, server):
         summary_writer = tf.train.SummaryWriter(logdir + "_%d" % args.task)
 
     logger.info("Events directory: %s_%s", logdir, args.task)
-    print('44444444444444444444444444444444444444444444444444')
     sv = tf.train.Supervisor(is_chief=(args.task == 0),
                              logdir=logdir,
                              saver=None,
@@ -79,15 +75,24 @@ def run(args, server):
                              global_step=trainer.global_step,
                              save_model_secs=30,
                              save_summaries_secs=30)
+    print('44444444444444444444444444444444444444444444444444')
 
     num_global_steps = 100000000
+    print('55555555555555555555555555555555555555555555555555')
 
     logger.info(
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
-    with sv.managed_session(server.target, config=config) as sess, sess.as_default():
+    print('66666666666666666666666666666666666666666666666666')
+    print(server.target)
+    # with sv.managed_session(server.target, config=config) as sess, sess.as_default():
+    with tf.Session(server.target, config=config) as sess, sess.as_default():
+        init_fn(sess)
+        print('77777777777777777777777777777777777777777777777777')
         sess.run(trainer.sync)
+        print('88888888888888888888888888888888888888888888888888')
         trainer.start(sess, summary_writer)
+        print('99999999999999999999999999999999999999999999999999')
         global_step = sess.run(trainer.global_step)
         logger.info("Starting training at step=%d", global_step)
         while not sv.should_stop() and (not num_global_steps or global_step < num_global_steps):
