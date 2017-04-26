@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import argparse
 import os
-import pprint
+import subprocess
 import sys
 
 parser = argparse.ArgumentParser(description="Run commands")
@@ -15,6 +15,8 @@ parser.add_argument('-e', '--env-id', type=str, default="PongDeterministic-v3",
                     help="Environment id")
 parser.add_argument('-l', '--log-dir', type=str, default="/tmp/pong",
                     help="Log directory path")
+parser.add_argument('-s', '--spec-path', type=str, default="spec.yaml",
+                    help="Path to file with spec (argument to tf.train.ClusterSpec)")
 parser.add_argument('-n', '--dry-run', action='store_true',
                     help="Print out commands rather than executing them")
 parser.add_argument('-m', '--mode', type=str, default='tmux',
@@ -39,7 +41,8 @@ def new_cmd(session, name, cmd, mode, logdir, shell):
                                                                                               logdir)
 
 
-def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash', mode='tmux', visualise=False):
+def create_commands(session, num_workers, remotes, env_id, logdir, spec_path,
+                    shell='bash', mode='tmux', visualise=False):
     # for launching the TF workers and for launching tensorboard
     base_cmd = [
         'CUDA_VISIBLE_DEVICES=',
@@ -65,17 +68,19 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
             docker_cmd = ['docker run -it',
                           '--rm',
                           '--name={}'.format(name),
-                          '--net=host']
+                          # '--net=host'
+                          ]
             image = 'ardrone'
-            cmd_arg = ('/xvfb-launch.sh '
+            cmd_arg = ('/start.sh '
                        'false '  # gui
                        '\"'  # args for worker.py
                        '--log-dir {} '.format(os.path.join(os.getcwd(), 'ardrone')) +
                        '--env-id {} '.format(env_id) +
                        '--num-workers {} '.format(num_workers) +
                        '--task {} '.format(i) +
-                       '--remote {}'.format(remotes[i])) + \
-                       '\"'
+                       '--remote {} '.format(remotes[i]) +
+                       '--spec-path {} '.format(os.path.join('/', spec_path)) +
+                       '\"')
             if mode == 'tmux':
                 rest_of_cmd = [image, cmd_arg]
                 cmd = new_cmd(session, name, docker_cmd + rest_of_cmd, mode, logdir, shell)
@@ -134,8 +139,8 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
 
 def run():
     args = parser.parse_args()
-    cmds, notes = create_commands("a3c", args.num_workers, args.remotes, args.env_id, args.log_dir, mode=args.mode,
-                                  visualise=args.visualise)
+    cmds, notes = create_commands("a3c", args.num_workers, args.remotes, args.env_id, args.log_dir, args.spec_path,
+                                  mode=args.mode, visualise=args.visualise)
     if args.dry_run:
         print("Dry-run mode due to -n flag, otherwise the following commands would be executed:")
     else:

@@ -208,7 +208,6 @@ should be computed.
             entropy = tf.reduce_sum(pi.dist.entropy())
             bs = tf.to_float(tf.shape(pi.x)[0])
             self.loss = pi_loss + 0.5 * vf_loss - entropy * 0.01
-            self.loss = tf.verify_tensor_all_finite(self.loss, 'loss')
 
             # 20 represents the number of "local steps":  the number of timesteps
             # we run the policy before we update the parameters.
@@ -241,7 +240,6 @@ should be computed.
                 self.summary_op = tf.merge_all_summaries()
 
             grads, _ = tf.clip_by_global_norm(grads, 40.0)
-            grads = [tf.verify_tensor_all_finite(x, msg=x.name) for x in grads]
 
             # copy weights from the parameter server to the local model
             self.sync = tf.group(*[v1.assign(v2) for v1, v2 in zip(pi.var_list, self.network.var_list)])
