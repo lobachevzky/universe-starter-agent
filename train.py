@@ -67,7 +67,7 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
                           '--name={}'.format(name),
                           '--net=host']
             image = 'ardrone'
-            cmd_arg = ('/xvfb-launch.sh '
+            cmd_arg = ('/start.sh '
                        'false '  # gui
                        '\"'  # args for worker.py
                        '--log-dir {} '.format(os.path.join(os.getcwd(), 'ardrone')) +
