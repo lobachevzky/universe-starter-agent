@@ -1,0 +1,23 @@
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 801, in __bootstrap_inner
+    self.run()
+  File "/home/ethan/ardrone-project/catkin/src/a3c/a3c.py", line 102, in run
+    self._run()
+  File "/home/ethan/ardrone-project/catkin/src/a3c/a3c.py", line 111, in _run
+    self.queue.put(next(rollout_provider), timeout=600.0)
+  File "/home/ethan/ardrone-project/catkin/src/a3c/a3c.py", line 132, in env_runner
+    fetched = policy.act(last_state, *last_features)
+  File "/home/ethan/ardrone-project/catkin/src/a3c/model.py", line 128, in act
+    {self.x: [ob]})
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 767, in run
+    run_metadata_ptr)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 965, in _run
+    feed_dict_string, options, run_metadata)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1015, in _do_run
+    target_list, options, run_metadata)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1035, in _do_call
+    raise type(e)(node_def, op, message)
+CancelledError: RunManyGraphs
+
+
