@@ -66,7 +66,7 @@ def run(args, server):
     logger.info("Events directory: %s_%s", logdir, args.task)
     sv = tf.train.Supervisor(is_chief=(args.task == 0),
                              logdir=logdir,
-                             saver=None, # TODO
+                             saver=None,
                              summary_op=None,
                              init_op=init_op,
                              init_fn=init_fn,
