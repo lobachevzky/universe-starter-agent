@@ -7,7 +7,7 @@
     </include>
 
 
-     <!--Spawn simulated quadrotor uav -->
+     Spawn simulated quadrotor uav
     <include file='$(find cvg_sim_gazebo)/launch/spawn_quadrotor.launch' >
       <arg name='model' value='$(find cvg_sim_gazebo)/urdf/quadrotor_sensors.urdf.xacro'/>
     </include>
@@ -16,11 +16,6 @@
     <arg name='restore' default='False' />
 
     <arg name='worker-args' default='' />
-    <!--<arg name='task' default='' />-->
-    <!--<arg name='num_workers' default='' />-->
-    <!--<arg name='log-dir' default='/tmp/' />-->
-    <!--<arg name='remotes' default='' />-->
-
     <param name='controller_rate' type='double' value='10.0'/>
     <param name='num_images' type='int' value='4'/>
     <param name='image_scale' type='double' value='1'/>
@@ -34,6 +29,14 @@
       <!--required='true'-->
     <!--/>-->
 
+    <!--<node name='agent_node'-->
+    <!--pkg='a3c'-->
+    <!--type='test.py'-->
+    <!--output='screen'-->
+    <!--required='true'-->
+    <!--args='$(arg worker-args)'-->
+    <!--/>-->
+
     <node name='agent_node'
       pkg='a3c'
       type='worker.py'
@@ -41,20 +44,5 @@
       required='true'
       args='$(arg worker-args)'
     />
-    <!--args='&#45;&#45;log-dir $(arg log-dir)-->
-    <!--&#45;&#45;env-id gazebo -->
-    <!--&#45;&#45;job-name worker-->
-    <!--&#45;&#45;num-workers $(arg num_workers)-->
-    <!--&#45;&#45;task $(arg task)-->
-    <!--&#45;&#45;remotes $(arg remotes)'-->
 
-    <!--<node name='agent_node'-->
-      <!--pkg='a3c'-->
-      <!--type='worker.py'-->
-      <!--output='screen'-->
-      <!--required='true'-->
-      <!--args='==log-dir /tmp/ardrone-->
-            <!--==env-id gazebo -->
-            <!--==job-name worker'-->
-    <!--/>-->
 </launch>

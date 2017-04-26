@@ -1,8 +1,12 @@
 #!/usr/bin/env python
+import json
+
+import yaml
 from pprint import pprint
 
 import cv2
 import go_vncdriver
+import re
 import tensorflow as tf
 import argparse
 import logging
@@ -117,7 +121,6 @@ def main(_):
     """
 Setting up Tensorflow for data parallel work
 """
-
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-v', '--verbose', action='count', dest='verbosity', default=0, help='Set verbosity.')
     parser.add_argument('--task', default=0, type=int, help='Task index')
@@ -125,6 +128,7 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
     parser.add_argument('--log-dir', default='/tmp/pong', help='Log directory path')
     parser.add_argument('--env-id', default='PongDeterministic-v3', help='Environment id')
+    parser.add_argument('--spec', type=str, default=None, help="argument to tf.train.ClusterSpec")
     parser.add_argument('--host', default='127.0.0.1'
                         , help='ip address for parameter sever (docker0 if gazebo)')
     parser.add_argument('-r', '--remotes', default=None,
@@ -137,7 +141,17 @@ Setting up Tensorflow for data parallel work
                         help="Visualise the gym environment by running env.render() between each timestep")
 
     (args, _) = parser.parse_known_args()
+
+    print('####################################### ARGS')
+    print(args)
+    print('####################################### ARGS')
+
+    # if args.spec is None:
     spec = cluster_spec(args.num_workers, 1, args.host)
+    # else:
+    #     fixed_up_spec = re.sub('([^{}:[\],]+)', r'"\1"', args.spec).replace('":"', ':')
+    #     spec = json.loads(fixed_up_spec)
+
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
     def shutdown(signal, frame):
