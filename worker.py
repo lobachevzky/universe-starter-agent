@@ -147,11 +147,11 @@ Setting up Tensorflow for data parallel work
     print(args)
     print('####################################### ARGS')
 
-    # if args.spec is None:
-    spec = cluster_spec(args.num_workers, 1, args.host)
-    # else:
-    #     fixed_up_spec = re.sub('([^{}:[\],]+)', r'"\1"', args.spec).replace('":"', ':')
-    #     spec = json.loads(fixed_up_spec)
+    if args.spec is None:
+        spec = cluster_spec(args.num_workers, 1, args.host)
+    else:
+        fixed_up_spec = re.sub('([^{}:[\],]+)', r'"\1"', args.spec).replace('":"', ':')
+        spec = json.loads(fixed_up_spec)
 
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
