@@ -32,8 +32,11 @@ class FastSaver(tf.train.Saver):
 
 
 def run(args, server):
+    print('11111111111111111111111111111111111111111111111111')
     env = create_env(args.env_id, client_id=str(args.task), remotes=args.remotes)
+    print('22222222222222222222222222222222222222222222222222')
     trainer = A3C(env, args.task, args.visualise)
+    print('33333333333333333333333333333333333333333333333333')
 
     # Variable names that start with "local" are not saved in checkpoints.
     if use_tf12_api:
@@ -64,6 +67,7 @@ def run(args, server):
         summary_writer = tf.train.SummaryWriter(logdir + "_%d" % args.task)
 
     logger.info("Events directory: %s_%s", logdir, args.task)
+    print('44444444444444444444444444444444444444444444444444')
     sv = tf.train.Supervisor(is_chief=(args.task == 0),
                              logdir=logdir,
                              saver=None,
@@ -82,7 +86,6 @@ def run(args, server):
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
     with sv.managed_session(server.target, config=config) as sess, sess.as_default():
-    # with tf.Session(server.target, config=config) as sess, sess.as_default():
         sess.run(trainer.sync)
         trainer.start(sess, summary_writer)
         global_step = sess.run(trainer.global_step)
@@ -143,9 +146,9 @@ Setting up Tensorflow for data parallel work
 
     (args, _) = parser.parse_known_args()
 
-    print('####################################### ARGS')
-    print(args)
-    print('####################################### ARGS')
+    print('################# ARGS ######################')
+    pprint(args.__dict__)
+    print('################# ARGS ######################')
 
     if args.spec is None:
         spec = cluster_spec(args.num_workers, 1, args.host)
