@@ -137,7 +137,8 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
     parser.add_argument('--log-dir', default='/tmp/pong', help='Log directory path')
     parser.add_argument('--env-id', default='PongDeterministic-v3', help='Environment id')
-    parser.add_argument('--spec', type=str, default=None, help="argument to tf.train.ClusterSpec")
+    parser.add_argument('--workers', type=str, default=None, help="ips and ports for workers (comma separated)")
+    parser.add_argument('--ps', type=str, default=None, help="ips and ports for parameter server (comma separated)")
     parser.add_argument('--host', default='127.0.0.1'
                         , help='ip address for parameter sever (docker0 if gazebo)')
     parser.add_argument('-r', '--remotes', default=None,
@@ -155,11 +156,11 @@ Setting up Tensorflow for data parallel work
     pprint(args.__dict__)
     print('################# ARGS ######################')
 
-    if args.spec is None:
+    if args.ps is None or args.workers is None:
         spec = cluster_spec(args.num_workers, 1, args.host)
     else:
-        fixed_up_spec = re.sub('([^{}:[\],]+)', r'"\1"', args.spec).replace('":"', ':')
-        spec = json.loads(fixed_up_spec)
+        spec = {'worker': args.workers.split(','),
+                'ps':     args.ps.split(',')}
 
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
