@@ -81,9 +81,11 @@ def run(args, server):
     logger.info(
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
+
     # with sv.managed_session(server.target, config=config) as sess, sess.as_default():
     with tf.Session(server.target, config=config) as sess, sess.as_default():
         init_fn(sess)
+
         sess.run(trainer.sync)
         trainer.start(sess, summary_writer)
         global_step = sess.run(trainer.global_step)
@@ -168,6 +170,9 @@ Setting up Tensorflow for data parallel work
     if args.job_name == "worker":
         server = tf.train.Server(cluster, job_name="worker", task_index=args.task,
                                  config=tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=2))
+        print('################# SERVER ######################')
+        print(server.target)
+        print('################# SERVER ######################')
         run(args, server)
     else:
         server = tf.train.Server(cluster, job_name="ps", task_index=args.task,

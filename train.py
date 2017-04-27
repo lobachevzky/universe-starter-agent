@@ -46,7 +46,7 @@ def create_commands(session, num_workers, remotes, env_id, logdir, spec_path,
     # for launching the TF workers and for launching tensorboard
     base_cmd = [
         'CUDA_VISIBLE_DEVICES=',
-        sys.executable, 'worker.py',
+        sys.executable, 'job.py',
         '--log-dir', logdir,
         '--env-id', env_id,
         '--num-workers', str(num_workers)]
@@ -73,7 +73,7 @@ def create_commands(session, num_workers, remotes, env_id, logdir, spec_path,
             image = 'ardrone'
             cmd_arg = ('/start.sh '
                        'false '  # gui
-                       '\"'  # args for worker.py
+                       '\"'  # args for job.py
                        '--log-dir {} '.format(os.path.join(os.getcwd(), 'ardrone')) +
                        '--env-id {} '.format(env_id) +
                        '--num-workers {} '.format(num_workers) +
