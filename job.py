@@ -157,6 +157,10 @@ Setting up Tensorflow for data parallel work
         spec = {'worker': args.workers.split(','),
                 'ps':     args.ps.split(',')}
 
+    print('################# SPEC ######################')
+    pprint(spec)
+    print('################# SPEC ######################')
+
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
     def shutdown(signal, frame):
