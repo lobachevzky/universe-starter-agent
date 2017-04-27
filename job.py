@@ -147,9 +147,9 @@ Setting up Tensorflow for data parallel work
 
     (args, _) = parser.parse_known_args()
 
-    print('################# ARGS ######################')
+    print
     pprint(args.__dict__)
-    print('################# ARGS ######################')
+    print
 
     if args.ps is None or args.workers is None:
         spec = cluster_spec(args.num_workers, 1, args.host)
@@ -157,9 +157,9 @@ Setting up Tensorflow for data parallel work
         spec = {'worker': args.workers.split(','),
                 'ps':     args.ps.split(',')}
 
-    print('################# SPEC ######################')
+    print
     pprint(spec)
-    print('################# SPEC ######################')
+    print
 
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
