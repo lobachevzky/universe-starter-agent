@@ -102,3 +102,4 @@ ardrone/cmd.sh
 ardrone/follow.sh
 ardrone/kill.sh
 ardrone/train
+test.py
