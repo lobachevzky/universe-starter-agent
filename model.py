@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 import distutils.version
 import abc
+from .gaussian_log import NormalWithLogScale
 
 use_tf100_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('1.0.0')
 
@@ -72,7 +74,7 @@ class Policy(object):
         if ac_space.is_continuous:
             # self.dist_params = tf.nn.softplus(self.dist_params)  # alpha and beta are positive
             mean, stdev = tf.unstack(self.dist_params, axis=2)
-            self.dist = tf.contrib.distributions.Normal(mean, tf.nn.softplus(stdev))
+            self.dist = NormalWithLogScale(mean, stdev)
             self.action = tf.reshape(self.dist.sample(), ac_space.shape)
             self.action = ac_space.low + (ac_space.high - ac_space.low) * self.action
         else:
