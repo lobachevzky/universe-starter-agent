@@ -66,7 +66,7 @@ def run(args, server):
     logger.info("Events directory: %s_%s", logdir, args.task)
     sv = tf.train.Supervisor(is_chief=(args.task == 0),
                              logdir=logdir,
-                             saver=None,
+                             saver=saver,
                              summary_op=None,
                              init_op=init_op,
                              init_fn=init_fn,
@@ -82,10 +82,9 @@ def run(args, server):
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
 
-    with sv.managed_session(server.target, config=config) as sess, sess.as_default():
     # with tf.Session(server.target, config=config) as sess, sess.as_default():
     #     init_fn(sess)
-
+    with sv.managed_session(server.target, config=config) as sess, sess.as_default():
         sess.run(trainer.sync)
         trainer.start(sess, summary_writer)
         global_step = sess.run(trainer.global_step)
@@ -155,7 +154,7 @@ Setting up Tensorflow for data parallel work
         spec = cluster_spec(args.num_workers, 1, args.host)
     else:
         spec = {'worker': args.workers.split(','),
-                'ps':     args.ps.split(',')}
+                'ps': args.ps.split(',')}
 
     print
     pprint(spec)

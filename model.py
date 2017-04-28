@@ -58,7 +58,6 @@ class Policy(object):
             for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
 
-        # x = tf.nn.elu(linear(x, 200, 'h0'))
         h = self.pass_through_network(flatten(x))
 
         if ac_space.is_continuous:
@@ -127,8 +126,10 @@ class MLPpolicy(Policy):
         return sess.run(self.vf, {self.x: [ob]})[0]
 
 
+#  params taken from paper
 class LSTMpolicy(Policy):
     def pass_through_network(self, x):
+        x = tf.nn.elu(linear(x, 200, 'h0'))
         x = tf.expand_dims(x, [0])
         # size = 256
         size = 128
