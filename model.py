@@ -58,7 +58,7 @@ class Policy(object):
             for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
 
-        x = tf.nn.elu(linear(x, 200, 'h0'))
+        # x = tf.nn.elu(linear(x, 200, 'h0'))
         h = self.pass_through_network(flatten(x))
 
         if ac_space.is_continuous:
