@@ -48,11 +48,6 @@ def linear(x, size, name, initializer=None, bias_init=0):
     return tf.matmul(x, w) + b
 
 
-def categorical_sample(logits, d):
-    value = tf.squeeze(tf.multinomial(logits - tf.reduce_max(logits, [1], keep_dims=True), 1), [1])
-    return tf.one_hot(value, d)
-
-
 class Policy(object):
     __metaclass__ = abc.ABCMeta
 
@@ -63,7 +58,8 @@ class Policy(object):
             for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
 
-        h = self.network(flatten(x))
+        x = tf.nn.elu(linear(x, 200, 'h0'))
+        h = self.pass_through_network(flatten(x))
 
         if ac_space.is_continuous:
             n_dist_params = 2
@@ -77,10 +73,9 @@ class Policy(object):
         if ac_space.is_continuous:
             # self.dist_params = tf.nn.softplus(self.dist_params)  # alpha and beta are positive
             mean, stdev = tf.unstack(self.dist_params, axis=2)
-            self.dist = tf.contrib.distributions.Normal(mean, .05 + tf.nn.softplus(stdev))
+            self.dist = tf.contrib.distributions.Normal(mean, tf.nn.softplus(stdev))
             self.action = tf.reshape(self.dist.sample(), ac_space.shape)
             self.action = ac_space.low + (ac_space.high - ac_space.low) * self.action
-            # self.action = self.dist.sample()  # [bsize, ac_space.dim]
         else:
             max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)  # [bsize, 1, 1]
             logits = self.dist_params - max
@@ -109,12 +104,12 @@ class Policy(object):
         pass
 
     @abc.abstractmethod
-    def network(self, x):
+    def pass_through_network(self, x):
         pass
 
 
 class MLPpolicy(Policy):
-    def network(self, x):
+    def pass_through_network(self, x):
         size1, size2 = 60, 60
         h = tf.nn.elu(linear(x, size1, 'h1'))
         return tf.nn.elu(linear(h, size2, 'h2'))
@@ -133,9 +128,10 @@ class MLPpolicy(Policy):
 
 
 class LSTMpolicy(Policy):
-    def network(self, x):
+    def pass_through_network(self, x):
         x = tf.expand_dims(x, [0])
-        size = 256
+        # size = 256
+        size = 128
         if use_tf100_api:
             lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
         else:
@@ -168,7 +164,6 @@ class LSTMpolicy(Policy):
 
     def act(self, ob, c, h):
         sess = tf.get_default_session()
-        # ob = ob.reshape(-1, *self.x.get_shape()[1:])
         return sess.run([self.action, self.vf] + self.state_out,
                         {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})
 

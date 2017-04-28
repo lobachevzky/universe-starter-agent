@@ -10,7 +10,7 @@ import scipy.signal
 import threading
 import distutils.version
 
-use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
+USE_TF12_API = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 
 
 def discount(x, gamma):
@@ -180,7 +180,7 @@ should be computed.
 
         self.env = env
         self.task = task
-        policy = MLPpolicy
+        policy = LSTMpolicy
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
@@ -204,10 +204,14 @@ should be computed.
             pi_loss = - tf.reduce_sum(pi.log_prob(self.ac) * self.adv)
 
             # loss of value function
-            vf_loss = 0.5 * tf.reduce_sum(tf.square(pi.vf - self.r))
+            vf_loss = tf.reduce_sum(tf.square(pi.vf - self.r))
             entropy = tf.reduce_sum(pi.dist.entropy())
-            bs = tf.to_float(tf.shape(pi.x)[0])
-            self.loss = pi_loss + 0.5 * vf_loss - entropy * 0.01
+            # TODO
+            # entropy = tf.reduce_sum(-0.5 * (tf.log(2 * np.math.pi * tf.square(pi.dist.std())) + 1))
+
+            # loss gets minimized! pi_loss goes down, cv_loss, goes down, and entropy goes up.
+            self.loss = pi_loss + 0.25 * vf_loss - entropy * tf.nn.softplus(-entropy)
+            self.loss = tf.verify_tensor_all_finite(self.loss, 'loss')
 
             # 20 represents the number of "local steps":  the number of timesteps
             # we run the policy before we update the parameters.
@@ -219,7 +223,9 @@ should be computed.
 
             grads = tf.gradients(self.loss, pi.var_list)
 
-            if use_tf12_api:
+            bs = tf.to_float(tf.shape(pi.x)[0])
+            if USE_TF12_API:
+                tf.summary.scalar("model/total_loss", self.loss / bs)
                 tf.summary.scalar("model/policy_loss", pi_loss / bs)
                 tf.summary.scalar("model/value_loss", vf_loss / bs)
                 tf.summary.scalar("model/entropy", entropy / bs)
@@ -230,6 +236,7 @@ should be computed.
                 self.summary_op = tf.summary.merge_all()
 
             else:
+                tf.scalar_summary("model/total_loss", self.loss / bs)
                 tf.scalar_summary("model/policy_loss", pi_loss / bs)
                 tf.scalar_summary("model/value_loss", vf_loss / bs)
                 tf.scalar_summary("model/entropy", entropy / bs)
@@ -248,7 +255,7 @@ should be computed.
             inc_step = self.global_step.assign_add(tf.shape(pi.x)[0])
 
             # each worker has a different set of adam optimizer parameters
-            opt = tf.train.AdamOptimizer(1e-4)
+            opt = tf.train.AdamOptimizer(1e-5)
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0
