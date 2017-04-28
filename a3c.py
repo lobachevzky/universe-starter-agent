@@ -252,8 +252,7 @@ should be computed.
             grads_and_vars = list(zip(grads, self.network.var_list))
             inc_step = self.global_step.assign_add(tf.shape(pi.x)[0])
 
-            # each worker has a different set of adam optimizer parameters
-            opt = tf.train.AdamOptimizer(1e-5)
+            opt = tf.train.RMSPropOptimizer(1e-5)
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0

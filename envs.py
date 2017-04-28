@@ -31,10 +31,6 @@ def create_env(env_id, client_id, remotes, **kwargs):
         return create_vncatari_env(env_id, client_id, remotes, **kwargs)
     else:
         return create_classic_env(env_id)
-    # else:
-    #     # Assume atari.
-    #     assert "." not in env_id  # universe environments have dots in names.
-    #     return create_atari_env(env_id)
 
 
 def create_flash_env(env_id, client_id, remotes, **_):
