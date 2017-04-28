@@ -180,7 +180,7 @@ should be computed.
 
         self.env = env
         self.task = task
-        policy = LSTMpolicy
+        policy = MLPpolicy
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
@@ -206,11 +206,9 @@ should be computed.
             # loss of value function
             vf_loss = tf.reduce_sum(tf.square(pi.vf - self.r))
             entropy = tf.reduce_sum(pi.dist.entropy())
-            # TODO
-            # entropy = tf.reduce_sum(-0.5 * (tf.log(2 * np.math.pi * tf.square(pi.dist.std())) + 1))
 
             # loss gets minimized! pi_loss goes down, cv_loss, goes down, and entropy goes up.
-            self.loss = pi_loss + 0.25 * vf_loss - entropy * tf.nn.softplus(-entropy)
+            self.loss = pi_loss + 0.25 * vf_loss - entropy * .01
             self.loss = tf.verify_tensor_all_finite(self.loss, 'loss')
 
             # 20 represents the number of "local steps":  the number of timesteps
