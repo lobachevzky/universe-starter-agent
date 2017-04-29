@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.contrib.distributions import Normal
 import math
 
+
 class NormalWithLogScale(Normal):
     """Normal with log scales."""
 
@@ -36,5 +37,3 @@ class NormalWithLogScale(Normal):
         # Use broadcasting rules to calculate the full broadcast scale.
         log_scale = self.log_scale * tf.ones_like(self.loc)
         return 0.5 * math.log(2. * math.pi * math.e) + log_scale
-
-

@@ -4,7 +4,7 @@ import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 import distutils.version
 import abc
-from .gaussian_log import NormalWithLogScale
+from gaussian_log import NormalWithLogScale
 
 use_tf100_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('1.0.0')
 
