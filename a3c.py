@@ -253,7 +253,7 @@ should be computed.
             inc_step = self.global_step.assign_add(tf.shape(pi.x)[0])
 
             learning_rate = 1e-4
-            opt = tf.train.RMSPropOptimizer(learning_rate)  # / tf.floor(tf.to_float(self.global_step) * 1e-6 + 1))
+            opt = tf.train.AdamOptimizer(learning_rate)  # / tf.floor(tf.to_float(self.global_step) * 1e-6 + 1))
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0
