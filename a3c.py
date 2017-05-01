@@ -221,8 +221,10 @@ should be computed.
 
             grads = tf.gradients(self.loss, pi.var_list)
 
+            learning_rate = 1e-4  # / tf.floor(tf.to_float(self.global_step) * 1e-6 + 1))
             bs = tf.to_float(tf.shape(pi.x)[0])
             if USE_TF12_API:
+                tf.summary.scalar("model/learning_rate", learning_rate)
                 tf.summary.scalar("model/total_loss", self.loss / bs)
                 tf.summary.scalar("model/policy_loss", pi_loss / bs)
                 tf.summary.scalar("model/value_loss", vf_loss / bs)
@@ -234,6 +236,7 @@ should be computed.
                 self.summary_op = tf.summary.merge_all()
 
             else:
+                tf.scalar_scalar("model/learning_rate", learning_rate)
                 tf.scalar_summary("model/total_loss", self.loss / bs)
                 tf.scalar_summary("model/policy_loss", pi_loss / bs)
                 tf.scalar_summary("model/value_loss", vf_loss / bs)
@@ -252,8 +255,7 @@ should be computed.
             grads_and_vars = list(zip(grads, self.network.var_list))
             inc_step = self.global_step.assign_add(tf.shape(pi.x)[0])
 
-            learning_rate = 1e-4
-            opt = tf.train.AdamOptimizer(learning_rate)  # / tf.floor(tf.to_float(self.global_step) * 1e-6 + 1))
+            opt = tf.train.AdamOptimizer(learning_rate)
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0

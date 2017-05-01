@@ -178,7 +178,7 @@ Setting up Tensorflow for data parallel work
         print('################# SERVER ######################')
         run(args, server)
     else:
-        server = tf.train.Server(cluster, job_name="ps", task_index=args.task,
+        tf.train.Server(cluster, job_name="ps", task_index=args.task,
                                  config=tf.ConfigProto(device_filters=["/job:ps"]))
         while True:
             time.sleep(1000)
