@@ -221,7 +221,7 @@ should be computed.
 
             grads = tf.gradients(self.loss, pi.var_list)
 
-            learning_rate = 1e-4  # / tf.floor(tf.to_float(self.global_step) * 1e-6 + 1))
+            learning_rate = 1e-3 / (tf.to_float(self.global_step) + 1e-6)
             bs = tf.to_float(tf.shape(pi.x)[0])
             if USE_TF12_API:
                 tf.summary.scalar("model/learning_rate", learning_rate)
