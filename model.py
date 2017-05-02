@@ -47,9 +47,29 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
 def linear(x, size, name, initializer=None, bias_init=0):
     w = tf.get_variable(name + "/w", [x.get_shape()[1], size], initializer=initializer)
     b = tf.get_variable(name + "/b", [size], initializer=tf.constant_initializer(bias_init))
-    with tf.control_dependencies([tf.assert_less(tf.abs(b), 100.0), tf.assert_less(tf.abs(w), 100.)]):
-        return tf.matmul(x, w) + b
-    # return tf.matmul(x, w) + b
+    return tf.matmul(x, w) + b
+
+
+def normal_dist(param_tensor):
+    return NormalWithLogScale(*tf.unstack(param_tensor, axis=2))
+
+
+def categorical_dist(param_tensor):
+    max = tf.reduce_max(param_tensor, axis=2, keep_dims=True)  # [bsize, 1, 1]
+    return tf.contrib.distributions.Categorical(logits=(param_tensor - max))
+
+
+def get_action(param_tensor, ac_shape, continuous):
+    with tf.control_dependencies(tf.assert_equal(tf.shape(param_tensor)[1:],
+                                                 [len(ac_shape), 2])):
+        dist = normal_dist(param_tensor) if continuous else categorical_dist(param_tensor)
+        return tf.reshape(dist.sample(), ac_shape)
+
+
+def log_prob(actions, dist, discrete):
+    if discrete:
+        actions = tf.to_int32(actions)
+    return tf.reduce_sum(dist.log_prob(actions))
 
 
 class Policy(object):
@@ -127,7 +147,7 @@ class MLPpolicy(Policy):
         return sess.run(self.vf, {self.x: [ob]})[0]
 
 
-#  params taken from paper
+# params taken from paper
 class LSTMpolicy(Policy):
     def pass_through_network(self, x):
         x = tf.nn.elu(linear(x, 200, 'h0'))

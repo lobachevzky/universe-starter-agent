@@ -117,7 +117,7 @@ The logic of the thread runner.  In brief, it constantly keeps on running
 the policy, and as long as the rollout exceeds a certain length, the thread
 runner appends the policy to the queue.
 """
-    last_state = env.reset()  #.reshape(env.observation_space.shape)
+    last_state = env.reset()  # .reshape(env.observation_space.shape)
     last_features = policy.get_initial_features()
     length = 0
     rewards = 0
@@ -155,7 +155,7 @@ runner appends the policy to the queue.
             if terminal or length >= timestep_limit:
                 terminal_end = True
                 if length >= timestep_limit or not env.metadata.get('semantics.autoreset'):
-                    last_state = env.reset()  #.reshape(env.observation_space.shape)
+                    last_state = env.reset()  # .reshape(env.observation_space.shape)
                 last_features = policy.get_initial_features()
                 print("Episode finished. Sum of rewards: {}. Length: {}".format(rewards, length))
                 length = 0
@@ -167,6 +167,18 @@ runner appends the policy to the queue.
 
         # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
         yield rollout
+
+
+def pi_loss(actions, advantages, log_prob):
+    return -tf.reduce_sum(log_prob(actions) * advantages)
+
+
+def vf_loss(value, reward):
+    return -tf.reduce_sum(tf.square(value - reward))
+
+
+def entropy(dist):
+    return tf.reduce_sum(dist.entropy())
 
 
 class A3C(object):
@@ -208,7 +220,7 @@ should be computed.
             entropy = tf.reduce_sum(pi.dist.entropy())
 
             # loss gets minimized! pi_loss goes down, cv_loss, goes down, and entropy goes up.
-            self.loss = pi_loss + 0.25 * vf_loss - entropy * .01
+            self.loss = pi_loss + 0.25 * vf_loss - entropy * 1e-4
             self.loss = tf.verify_tensor_all_finite(self.loss, 'loss')
 
             # 20 represents the number of "local steps":  the number of timesteps
@@ -221,7 +233,7 @@ should be computed.
 
             grads = tf.gradients(self.loss, pi.var_list)
 
-            learning_rate = 1e-5  #  / (tf.to_float(self.global_step) + 1e-6)
+            learning_rate = 1e-4  # / (tf.to_float(self.global_step) + 1e-6)
             bs = tf.to_float(tf.shape(pi.x)[0])
             if USE_TF12_API:
                 tf.summary.scalar("model/learning_rate", learning_rate)
