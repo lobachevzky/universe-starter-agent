@@ -47,7 +47,9 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
 def linear(x, size, name, initializer=None, bias_init=0):
     w = tf.get_variable(name + "/w", [x.get_shape()[1], size], initializer=initializer)
     b = tf.get_variable(name + "/b", [size], initializer=tf.constant_initializer(bias_init))
-    return tf.matmul(x, w) + b
+    with tf.control_dependencies([tf.assert_less(tf.abs(b), 100.0), tf.assert_less(tf.abs(w), 100.)]):
+        return tf.matmul(x, w) + b
+    # return tf.matmul(x, w) + b
 
 
 class Policy(object):
@@ -72,17 +74,14 @@ class Policy(object):
         self.vf = tf.reshape(linear(h, 1, "value", normalized_columns_initializer(1.0)), [-1])
 
         if ac_space.is_continuous:
-            # self.dist_params = tf.nn.softplus(self.dist_params)  # alpha and beta are positive
             mean, stdev = tf.unstack(self.dist_params, axis=2)
             self.dist = NormalWithLogScale(mean, stdev)
             self.action = tf.reshape(self.dist.sample(), ac_space.shape)
-            self.action = ac_space.low + (ac_space.high - ac_space.low) * self.action
         else:
             max = tf.reduce_max(self.dist_params, axis=2, keep_dims=True)  # [bsize, 1, 1]
             logits = self.dist_params - max
             self.dist = tf.contrib.distributions.Categorical(logits=logits)
             self.action = tf.squeeze(self.dist.sample())  # [bsize, ac_space.dim]
-            # self.dist.sample() gives # [bsize, ac_space.dim]
 
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
         self.ac_space = ac_space
