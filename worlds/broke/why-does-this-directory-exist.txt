@@ -1,0 +1,4 @@
+Two good mazes are included in this directory. However, for some reason, calling
+the rosservice '/gazebo/reset_world' causes these worlds to shift position (as
+in, the entire world moves relative to the quadcopter spawn point), which of
+course causes significant issues for the simulation.
