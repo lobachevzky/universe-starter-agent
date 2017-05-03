@@ -74,6 +74,7 @@
       <heading_deg>0</heading_deg>
     </spherical_coordinates>
     <model name='Maze'>
+      <!--<pose frame=''>0.26798 -0.11443 0 0 -0 0</pose>-->
       <pose frame=''>0.26798 -0.11443 0 0 -0 0</pose>
       <link name='Wall_15'>
         <collision name='Wall_15_Collision'>
