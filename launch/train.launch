@@ -2,17 +2,17 @@
     <arg name='gui' default='true' />
 
     <include file='$(find gazebo_ros)/launch/empty_world.launch'>
-      <arg name='world_name' value='$(find a3c)/worlds/maze.world'/>
+      <arg name='world_name' value='$(find a3c)/worlds/simple_maze.world'/>
       <arg name='gui' value='$(arg gui)'/>
     </include>
 
 
-     Spawn simulated quadrotor uav
+     <!--Spawn simulated quadrotor uav-->
     <include file='$(find cvg_sim_gazebo)/launch/spawn_quadrotor.launch' >
-      <arg name='model' value='$(find cvg_sim_gazebo)/urdf/quadrotor_sensors.urdf.xacro'/>
+      <arg name='model' value='$(find ardrone_sim)/urdf/quadrotor_sensors.urdf.xacro'/>
     </include>
 
-    <arg name='model' default='$(find cvg_sim_gazebo)/urdf/quadrotor.urdf.xacro'/>
+    <arg name='model' default='$(find ardrone_sim)/urdf/quadrotor.urdf.xacro'/>
     <arg name='restore' default='False' />
 
     <arg name='worker-args' default='' />
@@ -27,14 +27,6 @@
       <!--type='random_agent.py'-->
       <!--output='screen'-->
       <!--required='true'-->
-    <!--/>-->
-
-    <!--<node name='agent_node'-->
-    <!--pkg='a3c'-->
-    <!--type='test.py'-->
-    <!--output='screen'-->
-    <!--required='true'-->
-    <!--args='$(arg worker-args)'-->
     <!--/>-->
 
     <node name='agent_node'

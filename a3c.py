@@ -4,7 +4,6 @@ from functools import partial
 
 import numpy as np
 import tensorflow as tf
-from model import MLPpolicy, LSTMpolicy
 import six.moves.queue as queue
 import scipy.signal
 import threading
@@ -182,7 +181,7 @@ def entropy(dist):
 
 
 class A3C(object):
-    def __init__(self, env, task, visualise):
+    def __init__(self, env, task, visualise, policy, learning_rate):
         """
 An implementation of the A3C algorithm that is reasonably well-tuned for the VNC environments.
 Below, we will have a modest amount of complexity due to the way TensorFlow handles data parallelism.
@@ -192,7 +191,7 @@ should be computed.
 
         self.env = env
         self.task = task
-        policy = MLPpolicy
+        # policy = MLPpolicy
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
@@ -220,7 +219,7 @@ should be computed.
             entropy = tf.reduce_sum(pi.dist.entropy())
 
             # loss gets minimized! pi_loss goes down, cv_loss, goes down, and entropy goes up.
-            self.loss = pi_loss + 0.25 * vf_loss - entropy * 1e-4
+            self.loss = pi_loss + 0.25 * vf_loss  # - entropy * 1e-4
             self.loss = tf.verify_tensor_all_finite(self.loss, 'loss')
 
             # 20 represents the number of "local steps":  the number of timesteps
@@ -233,7 +232,8 @@ should be computed.
 
             grads = tf.gradients(self.loss, pi.var_list)
 
-            learning_rate = 1e-4  # / (tf.to_float(self.global_step) + 1e-6)
+            # learning_rate = 1e-5  # / (tf.to_float(self.global_step) + 1e-6)
+            # learning_rate /= (tf.to_float(self.global_step) + 1e-6)
             bs = tf.to_float(tf.shape(pi.x)[0])
             if USE_TF12_API:
                 tf.summary.scalar("model/learning_rate", learning_rate)

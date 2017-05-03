@@ -16,6 +16,8 @@ import os
 from a3c import A3C
 from envs import create_env
 import distutils.version
+# noinspection PyUnresolvedReferences
+from model import MLPpolicy, LSTMpolicy
 
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 
@@ -28,22 +30,25 @@ class FastSaver(tf.train.Saver):
     def save(self, sess, save_path, global_step=None, latest_filename=None,
              meta_graph_suffix="meta", write_meta_graph=True):
         super(FastSaver, self).save(sess, save_path, global_step, latest_filename,
-                                    meta_graph_suffix, False)
+                                    meta_graph_suffix, write_meta_graph=False)
 
 
 def run(args, server):
     env = create_env(args.env_id, client_id=str(args.task), remotes=args.remotes)
-    trainer = A3C(env, args.task, args.visualise)
+    trainer = A3C(env, args.task, args.visualise, eval(args.policy), args.learning_rate)
 
     # Variable names that start with "local" are not saved in checkpoints.
+    # Global variables and local variables are essentially copies of each other,
+    # except global includes variables used for optimization (e.g. AdamOptimizer variables)
     if use_tf12_api:
         variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
         init_op = tf.variables_initializer(variables_to_save)
         init_all_op = tf.global_variables_initializer()
     else:
         variables_to_save = [v for v in tf.all_variables() if not v.name.startswith("local")]
-        init_op = tf.initialize_variables(variables_to_save)
-        init_all_op = tf.initialize_all_variables()
+        init_op = tf.initialize_variables(variables_to_save)  # initialize global
+        init_all_op = tf.initialize_all_variables()  # initialize local
+
     saver = FastSaver(variables_to_save)
 
     var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
@@ -55,6 +60,7 @@ def run(args, server):
         logger.info("Initializing all parameters.")
         ses.run(init_all_op)
 
+    # this means that this job.py script is only 'aware' of itself and the parameter server (not the other workers)
     config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(args.task)])
     logdir = os.path.join(args.log_dir, 'train')
 
@@ -69,7 +75,7 @@ def run(args, server):
                              saver=None,
                              summary_op=None,
                              init_op=init_op,
-                             init_fn=init_fn,
+                             init_fn=init_fn,  # Just adds print statement to init_op
                              summary_writer=summary_writer,
                              ready_op=tf.report_uninitialized_variables(variables_to_save),
                              global_step=trainer.global_step,
@@ -130,8 +136,10 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--job-name', default='worker', help='worker or ps')
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
     parser.add_argument('--log-dir', default='/tmp/pong', help='Log directory path')
-    parser.add_argument('--env-id', default='PongDeterministic-v3', help='Environment id')
+    parser.add_argument('--env-id', default='CartPole-v0', help='Environment id')
     parser.add_argument('--workers', type=str, default=None, help="ips and ports for workers (comma separated)")
+    parser.add_argument('--policy', type=str, default='MLPpolicy', help="LSTMpolicy or MLPpolicy")
+    parser.add_argument('--learning-rate', type=float, default=1e-5, help="LSTMpolicy or MLPpolicy")
     parser.add_argument('--ps', type=str, default=None, help="ips and ports for parameter server (comma separated)")
     parser.add_argument('--host', default='127.0.0.1'
                         , help='ip address for parameter sever (docker0 if gazebo)')

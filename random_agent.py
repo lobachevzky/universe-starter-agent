@@ -9,7 +9,6 @@ env.reset()
 while not rospy.is_shutdown():
     action = np.random.rand(3)
     _, reward, done, _ = env.step(action)
-    print('Reward: {}'.format(reward))
     if done:
         env.reset()
 

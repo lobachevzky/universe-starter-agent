@@ -161,6 +161,7 @@ class Gazebo(Env):
             return self._images, reward, self._done, None
 
     def takeoff(self):
+        rospy.loginfo('Taking off')
         self._takeoff_publisher.publish(msg.Empty())
 
     def reset(self):
