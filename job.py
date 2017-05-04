@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import json
 
 import yaml
@@ -138,7 +139,7 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--log-dir', default='/tmp/pong', help='Log directory path')
     parser.add_argument('--env-id', default='CartPole-v0', help='Environment id')
     parser.add_argument('--workers', type=str, default=None, help="ips and ports for workers (comma separated)")
-    parser.add_argument('--policy', type=str, default='MLPpolicy', help="LSTMpolicy or MLPpolicy")
+    parser.add_argument('--policy', type=str, default='LSTMpolicy', help="LSTMpolicy or MLPpolicy")
     parser.add_argument('--learning-rate', type=float, default=1e-5, help="LSTMpolicy or MLPpolicy")
     parser.add_argument('--ps', type=str, default=None, help="ips and ports for parameter server (comma separated)")
     parser.add_argument('--host', default='127.0.0.1'
@@ -151,6 +152,7 @@ Setting up Tensorflow for data parallel work
     # Add visualisation argument
     parser.add_argument('--visualise', action='store_true',
                         help="Visualise the gym environment by running env.render() between each timestep")
+
 
     (args, _) = parser.parse_known_args()
 

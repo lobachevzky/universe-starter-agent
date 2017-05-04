@@ -13,28 +13,28 @@
     </include>
 
     <arg name='model' default='$(find cvg_sim_gazebo)/urdf/quadrotor.urdf.xacro'/>
-    <arg name='restore' default='False' />
+    <!--<arg name='restore' default='False' />-->
 
     <arg name='worker-args' default='' />
     <param name='controller_rate' type='double' value='10.0'/>
     <param name='num_images' type='int' value='4'/>
     <param name='image_scale' type='double' value='1'/>
     <param name='images_to_skip' type='int' value='0'/>
-    <param name='restore' type='bool' value='$(arg restore)'/>
-
-    <node name='agent_node'
-      pkg='a3c'
-      type='random_agent.py'
-      output='screen'
-      required='true'
-    />
+    <!--<param name='restore' type='bool' value='$(arg restore)'/>-->
 
     <!--<node name='agent_node'-->
       <!--pkg='a3c'-->
-      <!--type='job.py'-->
+      <!--type='random_agent.py'-->
       <!--output='screen'-->
       <!--required='true'-->
-      <!--args='$(arg worker-args)'-->
     <!--/>-->
+
+    <node name='agent_node'
+      pkg='a3c'
+      type='job.py'
+      output='screen'
+      required='true'
+      args='$(arg worker-args)'
+    />
 
 </launch>
