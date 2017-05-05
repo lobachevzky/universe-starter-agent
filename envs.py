@@ -1,12 +1,14 @@
 from pprint import pprint
 
 import cv2
+from gym.envs.registration import EnvSpec
 from gym.spaces.box import Box
 import numpy as np
 import gym
 from gym import spaces
 import logging
 import universe
+from gym.wrappers import TimeLimit
 from universe import vectorized
 from universe.wrappers import BlockingReset, GymCoreAction, EpisodeID, Unvectorize, Vectorize, Vision, Logger
 from universe import spaces as vnc_spaces
@@ -22,7 +24,11 @@ universe.configure_logging()
 
 def create_env(env_id, client_id, remotes, **kwargs):
     if env_id == 'gazebo':
-        return Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
+        env = Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
+        env = TimeLimit(env)
+        env = create_normal_env(env)
+        env.spec = EnvSpec('Gazebo-v0', max_episode_steps=300)
+        return env
 
     spec = gym.spec(env_id)
     if spec.tags.get('flashgames', False):
@@ -30,7 +36,7 @@ def create_env(env_id, client_id, remotes, **kwargs):
     elif spec.tags.get('atari', False) and spec.tags.get('vnc', False):
         return create_vncatari_env(env_id, client_id, remotes, **kwargs)
     else:
-        return create_classic_env(env_id)
+        return create_normal_env(gym.make(env_id))
 
 
 def create_flash_env(env_id, client_id, remotes, **_):
@@ -88,8 +94,7 @@ def create_atari_env(env_id):
     return env
 
 
-def create_classic_env(env_id):
-    env = gym.make(env_id)
+def create_normal_env(env):
     env = Vectorize(env)
     env = DiagnosticsInfo(env)
     env = Unvectorize(env)

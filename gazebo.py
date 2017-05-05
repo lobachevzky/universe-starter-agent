@@ -6,6 +6,7 @@ import random
 from Queue import Queue
 from threading import Lock
 
+import gym
 import numpy as np
 import re
 from interface import Env
@@ -72,7 +73,7 @@ def set_random_pos():
     )])
 
 
-class Gazebo(Env):
+class Gazebo(gym.Env):
     def __init__(self,
                  observation_range,
                  action_range,
@@ -151,23 +152,23 @@ class Gazebo(Env):
             else:
                 self._skipped_images += 1
 
-    def step(self, action):
+    def _step(self, action):
         self._action_publisher.publish(action_msg(*action))  # do_action
         rospy.wait_for_message('ardrone/image_raw', Image)  # take at most one step per image
         with self._done_lock, self._images_lock:
             progress = calculate_progress(self._tf_listener)
             reward = calculate_reward(progress, self._progress)
             self._progress = progress
-            return self._images, reward, self._done, None
+            return self._images, reward, self._done, {}
 
-    def takeoff(self):
+    def _takeoff(self):
         self._takeoff_publisher.publish(msg.Empty())
 
-    def reset(self):
+    def _reset(self):
         with self._done_lock:
             call_service('gazebo/reset_world')
             # set_random_pos()
-            self.takeoff()
+            self._takeoff()
             self._progress = 0
             self._done = False
         with self._images_lock:
@@ -175,9 +176,6 @@ class Gazebo(Env):
 
     def pause(self):
         self._land_publisher.publish(msg.Empty())
-
-    def max_time(self):
-        return 300
 
     @property
     def _images(self):
@@ -194,5 +192,19 @@ class Gazebo(Env):
         return self._observation_space
 
     @property
-    def metadata(self):
-        return {}
+    def reward_range(self):
+        return -np.inf, np.inf
+
+    # dummy methods to meet interface
+
+    def _render(self, _, **kwargs):
+        pass
+
+    def _close(self):
+        pass
+
+    def _configure(self):
+        pass
+
+    def _seed(self, **kwargs):
+        pass

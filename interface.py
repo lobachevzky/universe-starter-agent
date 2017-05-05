@@ -108,6 +108,13 @@ class Env:
         """
         pass
 
+    @abstractproperty
+    def reward_range(self):
+        """
+        range of possible reward values
+        """
+        pass
+
     @abstractmethod
     def reset(self):
         """
@@ -144,7 +151,7 @@ gym.spaces.Discrete.is_discrete = True
 gym.spaces.Discrete.is_continuous = False
 gym.spaces.Discrete.dim = lambda _: 1  # for some reason, gym[atari] allow only one button press per time step
 
-gym.Env.max_time = lambda self: self.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
+# gym.Env.max_time = lambda self: self.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
 
 if __name__ == '__main__':
     env = gym.make('CartPole-v0')
