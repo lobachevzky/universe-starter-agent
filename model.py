@@ -193,20 +193,26 @@ class LSTMpolicy(Policy):
         sess = tf.get_default_session()
         return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
 
+
 class NavPolicy(Policy):
     def pass_through_network(self, x):
         x = tf.expand_dims(x, [0])
         size = 128
-        if use_tf100_api:
-            lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
-        else:
-            lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
-
-        self.state_size = lstm.state_size
+        filter_height = filter_width = 10
+        lstm_size = filter_height * filter_width * size
+        batch_size = tf.shape(self.x)[0]
         step_size = tf.shape(self.x)[:1]
 
-        m_shape = (10, 20, 30)
+        if use_tf100_api:
+            lstm = rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
+        else:
+            lstm = rnn.rnn_cell.BasicLSTMCell(lstm_size, state_is_tuple=True)
 
+        self.state_size = lstm.state_size
+
+        in_height = in_width = 40
+
+        m_shape = (in_height, in_width, size)
         c_init = np.zeros((1, lstm.state_size.c), np.float32)
         h_init = np.zeros((1, lstm.state_size.h), np.float32)
         m_init = np.zeros(m_shape, np.float32)
@@ -214,9 +220,9 @@ class NavPolicy(Policy):
         self.state_init = [c_init, h_init, m_init]
         c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
         h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
-        m_in = tf.placeholder(tf.float32, m_shape)
+        abs_map = tf.placeholder(tf.float32, m_shape)
 
-        self.state_in = [c_in, h_in, m_in]
+        self.state_in = [c_in, h_in, abs_map]
 
         if use_tf100_api:
             state_in = rnn.LSTMStateTuple(c_in, h_in)
@@ -226,17 +232,29 @@ class NavPolicy(Policy):
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
             lstm, x, initial_state=state_in, sequence_length=step_size,
             time_major=False)
-        # lstm_output 1 x ? x size
+        # lstm_outputs 1 x step_size x lstm_size
 
+        with tf.control_dependencies([
+            # tf.assert_equal(tf.shape(lstm_outputs), [1, step_size, lstm_size]),
+            tf.Print(lstm_outputs, [tf.shape(lstm_outputs)], message='lstm_outputs'),
+            tf.Print(lstm_outputs, [step_size, batch_size], message='step size, batch size')
+        ]):
+            rel_map = tf.reshape(lstm_outputs, [batch_size, filter_height, filter_width, size, 1])
+            # abs_map = tf.tile(abs_map, [batch_size, 1, 1])  # batch_size * in_height, in_width, size
+            # abs_map = tf.reshape(abs_map, [1, batch_size, in_height, in_width, size])
+            # similarity = tf.nn.conv3d(abs_map, rel_map, strides=[1, 1, 1, 1, 1], padding="SAME")
+            # similarity = tf.squeeze(similarity, [0])
+            # similarity_abs_map = similarity * abs_map
+            # output = tf.reduce_sum(similarity_abs_map, axis=[1, 2])
 
-        lstm_c, lstm_h = state_in  # lstm_state
-        # lstm_c 1 x size
+            lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
-        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
-        return tf.reshape(lstm_outputs, [-1, size])
+            self.state_out = [lstm_c[:1, :], lstm_h[:1, :], abs_map]
+            reshape = tf.reshape(lstm_outputs, [-1, size])
+            return reshape
 
     def get_initial_features(self):
-        return self.state_init
+        return self.state_init  # TODO: carry over prev state and update the map
 
     def act(self, ob, c, h, m):
         sess = tf.get_default_session()
