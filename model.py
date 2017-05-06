@@ -77,6 +77,7 @@ class Policy(object):
 
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
+        self.ac_space = ac_space
 
         if len(list(ob_space)) > 1:
             for i in range(4):
@@ -104,7 +105,6 @@ class Policy(object):
             self.action = tf.squeeze(self.dist.sample())  # [bsize, ac_space.dim]
 
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
-        self.ac_space = ac_space
 
     def log_prob(self, actions):
         if self.ac_space.is_discrete:
@@ -215,13 +215,15 @@ class NavPolicy(Policy):
         c_init = np.zeros((1, lstm.state_size.c), np.float32)
         h_init = np.zeros((1, lstm.state_size.h), np.float32)
         m_init = np.zeros(m_shape, np.float32)
+        prev_action_init = np.zeros(self.ac_space.shape, np.float32)
 
-        self.state_init = [c_init, h_init, m_init]
+        self.state_init = [c_init, h_init, m_init, prev_action_init]
         c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
         h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
         m_in = tf.placeholder(tf.float32, m_shape)
+        prev_action = tf.placeholder(tf.float32, self.ac_space.shape)
 
-        self.state_in = [c_in, h_in, m_in]
+        self.state_in = [c_in, h_in, m_in, prev_action]
 
         if use_tf100_api:
             state_in = rnn.LSTMStateTuple(c_in, h_in)
@@ -240,24 +242,28 @@ class NavPolicy(Policy):
         similarity = tf.squeeze(similarity, [0])
         lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
-        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
+        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in, prev_action]
         return tf.reduce_sum(similarity * abs_map, axis=[1, 2])
 
     def get_initial_features(self):
         return self.state_init  # TODO: carry over prev state and update the map
 
-    def act(self, ob, c, h, m):
+    def act(self, ob, c, h, m, prev_action):
         sess = tf.get_default_session()
         return sess.run([self.action, self.vf] + self.state_out,
                         {self.x: [ob],
                          self.state_in[0]: c,
                          self.state_in[1]: h,
-                         self.state_in[2]: m})
+                         self.state_in[2]: m,
+                         self.state_in[3]: prev_action
+                         })
 
-    def value(self, ob, c, h, m):
+    def value(self, ob, c, h, m, prev_action):
         sess = tf.get_default_session()
         return sess.run(self.vf,
                         {self.x: [ob],
                          self.state_in[0]: c,
                          self.state_in[1]: h,
-                         self.state_in[2]: m})[0]
+                         self.state_in[2]: m,
+                         self.state_in[3]: prev_action
+                         })[0]
