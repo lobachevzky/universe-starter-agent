@@ -18,7 +18,7 @@ from a3c import A3C
 from envs import create_env
 import distutils.version
 # noinspection PyUnresolvedReferences
-from model import MLPpolicy, LSTMpolicy
+from model import MLPpolicy, LSTMpolicy, NavPolicy
 
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 
@@ -89,11 +89,13 @@ def run(args, server):
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
 
-    with sv.managed_session(server.target, config=config) as sess, sess.as_default():
+    # with sv.managed_session(server.target, config=config) as sess, sess.as_default():
+    with tf.Session(server.target, config=config) as sess, sess.as_default():
+        init_fn(sess)
 
         # For some reason, without this line, saver.py throws
         # `NotFoundError: /logs/train/model.ckpt-0.data-00000-of-00001.tempstate12439592398502750378`
-        saver.save(sess, logdir)
+        # saver.save(sess, logdir)
 
         sess.run(trainer.sync)
         trainer.start(sess, summary_writer)
@@ -139,10 +141,10 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--task', default=0, type=int, help='Task index')
     parser.add_argument('--job-name', default='worker', help='worker or ps')
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
-    parser.add_argument('--log-dir', default='/tmp/pong', help='Log directory path')
-    parser.add_argument('--env-id', default='CartPole-v0', help='Environment id')
+    parser.add_argument('--log-dir', default='/tmp/gazebo', help='Log directory path')
+    parser.add_argument('--env-id', default='gazebo', help='Environment id')
     parser.add_argument('--workers', type=str, default=None, help="ips and ports for workers (comma separated)")
-    parser.add_argument('--policy', type=str, default='LSTMpolicy', help="LSTMpolicy or MLPpolicy")
+    parser.add_argument('--policy', type=str, default='NavPolicy', help="LSTMpolicy or MLPpolicy")
     parser.add_argument('--learning-rate', type=float, default=1e-5, help="LSTMpolicy or MLPpolicy")
     parser.add_argument('--ps', type=str, default=None, help="ips and ports for parameter server (comma separated)")
     parser.add_argument('--host', default='127.0.0.1'
@@ -156,12 +158,11 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--visualise', action='store_true',
                         help="Visualise the gym environment by running env.render() between each timestep")
 
+    args, _ = parser.parse_known_args()
 
-    (args, _) = parser.parse_known_args()
-
-    print ()
+    print()
     pprint(args.__dict__)
-    print ()
+    print()
 
     if args.ps is None or args.workers is None:
         spec = cluster_spec(args.num_workers, 1, args.host)
@@ -169,9 +170,9 @@ Setting up Tensorflow for data parallel work
         spec = {'worker': args.workers.split(','),
                 'ps': args.ps.split(',')}
 
-    print ()
+    print()
     pprint(spec)
-    print ()
+    print()
 
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
@@ -192,7 +193,7 @@ Setting up Tensorflow for data parallel work
         run(args, server)
     else:
         tf.train.Server(cluster, job_name="ps", task_index=args.task,
-                                 config=tf.ConfigProto(device_filters=["/job:ps"]))
+                        config=tf.ConfigProto(device_filters=["/job:ps"]))
         while True:
             time.sleep(1000)
 

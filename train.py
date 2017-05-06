@@ -62,41 +62,8 @@ def create_commands(session, num_workers, remotes, env_id, logdir, spec_path,
 
     cmds_map = [new_cmd(session, "ps", base_cmd + ["--job-name", "ps"], mode, logdir, shell)]
     for i in range(num_workers):
-        if env_id == 'gazebo':
-
-            name = 'w-{}'.format(i)
-            docker_cmd = ['docker run -it',
-                          '--rm',
-                          '--name={}'.format(name),
-                          # '--net=host'
-                          ]
-            image = 'ardrone'
-            cmd_arg = ('/start.sh '
-                       'false '  # gui
-                       '\"'  # args for job.py
-                       '--log-dir {} '.format(os.path.join(os.getcwd(), 'ardrone')) +
-                       '--env-id {} '.format(env_id) +
-                       '--num-workers {} '.format(num_workers) +
-                       '--task {} '.format(i) +
-                       '--remote {} '.format(remotes[i]) +
-                       '--spec-path {} '.format(os.path.join('/', spec_path)) +
-                       '\"')
-            if mode == 'tmux':
-                rest_of_cmd = [image, cmd_arg]
-                cmd = new_cmd(session, name, docker_cmd + rest_of_cmd, mode, logdir, shell)
-            else:
-                rest_of_cmd = [
-                    '--detach', image, cmd_arg,
-                    '& echo docker kill {} >> {}/kill.sh'.format(name, logdir),
-                    '& echo \"docker logs -f --tail=30 {} | sed -e \'s/^/[-- {} --]/\' &\" >> {}/follow.sh'
-                        .format(name, name, logdir)
-                ]
-                cmd = (name, ' '.join(docker_cmd + rest_of_cmd))
-
-            cmds_map += [cmd]
-        else:
-            cmd = base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]]
-            cmds_map += [new_cmd(session, "w-{:d}".format(i), cmd, mode, logdir, shell)]
+        cmd = base_cmd + ["--job-name", "worker", "--task", str(i), "--remotes", remotes[i]]
+        cmds_map += [new_cmd(session, "w-{:d}".format(i), cmd, mode, logdir, shell)]
 
     cmds_map += [new_cmd(session, "tb", ["tensorboard", "--logdir", logdir, "--port", "12345"], mode, logdir, shell)]
     if mode == 'tmux':

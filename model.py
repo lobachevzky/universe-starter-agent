@@ -192,3 +192,64 @@ class LSTMpolicy(Policy):
     def value(self, ob, c, h):
         sess = tf.get_default_session()
         return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
+
+class NavPolicy(Policy):
+    def pass_through_network(self, x):
+        x = tf.expand_dims(x, [0])
+        size = 128
+        if use_tf100_api:
+            lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
+        else:
+            lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
+
+        self.state_size = lstm.state_size
+        step_size = tf.shape(self.x)[:1]
+
+        m_shape = (10, 20, 30)
+
+        c_init = np.zeros((1, lstm.state_size.c), np.float32)
+        h_init = np.zeros((1, lstm.state_size.h), np.float32)
+        m_init = np.zeros(m_shape, np.float32)
+
+        self.state_init = [c_init, h_init, m_init]
+        c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
+        h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
+        m_in = tf.placeholder(tf.float32, m_shape)
+
+        self.state_in = [c_in, h_in, m_in]
+
+        if use_tf100_api:
+            state_in = rnn.LSTMStateTuple(c_in, h_in)
+        else:
+            state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
+
+        lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+            lstm, x, initial_state=state_in, sequence_length=step_size,
+            time_major=False)
+        # lstm_output 1 x ? x size
+
+
+        lstm_c, lstm_h = state_in  # lstm_state
+        # lstm_c 1 x size
+
+        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
+        return tf.reshape(lstm_outputs, [-1, size])
+
+    def get_initial_features(self):
+        return self.state_init
+
+    def act(self, ob, c, h, m):
+        sess = tf.get_default_session()
+        return sess.run([self.action, self.vf] + self.state_out,
+                        {self.x: [ob],
+                         self.state_in[0]: c,
+                         self.state_in[1]: h,
+                         self.state_in[2]: m})
+
+    def value(self, ob, c, h, m):
+        sess = tf.get_default_session()
+        return sess.run(self.vf,
+                        {self.x: [ob],
+                         self.state_in[0]: c,
+                         self.state_in[1]: h,
+                         self.state_in[2]: m})[0]
