@@ -197,16 +197,16 @@ class LSTMpolicy(Policy):
 class NavPolicy(Policy):
     def pass_through_network(self, x):
         x = tf.expand_dims(x, [0])
-        size = 128
-        filter_height = filter_width = 10
+        size = 40
+        filter_height = filter_width = 3
         lstm_size = filter_height * filter_width * size
         batch_size = tf.shape(self.x)[0]
         step_size = tf.shape(self.x)[:1]
 
         if use_tf100_api:
-            lstm = rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
+            lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
         else:
-            lstm = rnn.rnn_cell.BasicLSTMCell(lstm_size, state_is_tuple=True)
+            lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
 
         self.state_size = lstm.state_size
 
@@ -239,7 +239,7 @@ class NavPolicy(Policy):
             tf.Print(lstm_outputs, [tf.shape(lstm_outputs)], message='lstm_outputs'),
             tf.Print(lstm_outputs, [step_size, batch_size], message='step size, batch size')
         ]):
-            rel_map = tf.reshape(lstm_outputs, [batch_size, filter_height, filter_width, size, 1])
+            # rel_map = tf.reshape(lstm_outputs, [batch_size, filter_height, filter_width, size, 1])
             # abs_map = tf.tile(abs_map, [batch_size, 1, 1])  # batch_size * in_height, in_width, size
             # abs_map = tf.reshape(abs_map, [1, batch_size, in_height, in_width, size])
             # similarity = tf.nn.conv3d(abs_map, rel_map, strides=[1, 1, 1, 1, 1], padding="SAME")
