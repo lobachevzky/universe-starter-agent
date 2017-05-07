@@ -196,7 +196,6 @@ class LSTMpolicy(Policy):
 
 class NavPolicy(Policy):
     def pass_through_network(self, x):
-        x = tf.expand_dims(x, [0])
         size = 50
         filter_height = filter_width = 3
         lstm_size = filter_height * filter_width * size
@@ -230,6 +229,9 @@ class NavPolicy(Policy):
         else:
             state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
 
+        x = tf.Print(x, [tf.shape(prev_action)], message='action')
+        # x = tf.concat([x, (tf.expand_dims(prev_action, 0))], 1)
+        x = tf.expand_dims(x, 0)
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
             lstm, x, initial_state=state_in, sequence_length=[step_size],
             time_major=False)
@@ -242,15 +244,17 @@ class NavPolicy(Policy):
         similarity = tf.squeeze(similarity, [0])
         lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
-        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in, prev_action]
-        return tf.reduce_sum(similarity * abs_map, axis=[1, 2])
+        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
+        reduce_sum = tf.reduce_sum(similarity * abs_map, axis=[1, 2])
+        # with tf.control_dependencies([tf.Print(reduce_sum, [tf.shape(prev_action)], message='prev_ac')]):
+        return reduce_sum
 
     def get_initial_features(self):
         return self.state_init  # TODO: carry over prev state and update the map
 
     def act(self, ob, c, h, m, prev_action):
         sess = tf.get_default_session()
-        return sess.run([self.action, self.vf] + self.state_out,
+        return sess.run([self.action, self.vf] + self.state_out + [self.action],
                         {self.x: [ob],
                          self.state_in[0]: c,
                          self.state_in[1]: h,
