@@ -197,9 +197,9 @@ class LSTMpolicy(Policy):
 
 class NavPolicy(Policy):
     def pass_through_network(self, x):
-        size = 50
-        in_height = in_width = 4
-        lstm_size = 4 + (in_height * in_width * size) / 4
+        hidden_size = 50
+        height = width = 4
+        lstm_size = 4 + (height * width * hidden_size) / 4
         step_size = tf.shape(self.x)[0]
 
         if use_tf100_api:
@@ -209,7 +209,7 @@ class NavPolicy(Policy):
 
         self.state_size = lstm.state_size
 
-        m_shape = in_height, in_width, size
+        m_shape = height, width, hidden_size
         c_init = np.zeros((1, lstm.state_size.c), np.float32)
         h_init = np.zeros((1, lstm.state_size.h), np.float32)
         m_init = np.zeros(m_shape, np.float32)
@@ -226,7 +226,6 @@ class NavPolicy(Policy):
         else:
             state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
 
-
         x = tf.expand_dims(x, 0)
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
             lstm, x, initial_state=state_in, sequence_length=[step_size],
@@ -236,54 +235,33 @@ class NavPolicy(Policy):
 
         alpha, angle, translation, add = tf.split(lstm_outputs, [1, 1, 2, -1], axis=1)
         alpha = tf.reshape(alpha, [step_size, 1, 1, 1])
-        add = tf.reshape(add, [step_size, in_height / 2, in_width / 2, size])
+        add = tf.reshape(add, [step_size, height / 2, width / 2, hidden_size])
         add = tf.concat([add, tf.zeros_like(add)], 1)
-        with tf.control_dependencies([
-            tf.assert_equal(tf.shape(add), [step_size, in_height, in_width / 2, size],
-                            message='add not the right shape (1)'),
-        ]):
-            add = tf.concat([add, tf.zeros_like(add)], 2)
-        with tf.control_dependencies([
-            tf.assert_equal(tf.shape(add), [step_size, in_height, in_width, size],
-                            message='add not the right shape (2)'),
-        ]):
+        add = tf.concat([add, tf.zeros_like(add)], 2)
 
-            theta0 = tf.stack([
-                tf.concat([tf.cos(angle), tf.sin(angle)], 1),
-                tf.concat([-tf.sin(angle), tf.cos(angle)], 1),
-                translation
-            ], axis=2)
-        # theta0 = tf.reshape(theta0, [-1, 6])
+        theta = tf.stack([
+            tf.concat([tf.cos(angle), tf.sin(angle)], 1),
+            tf.concat([-tf.sin(angle), tf.cos(angle)], 1),
+            translation
+        ], axis=2)
 
         abs_map = tf.tile(m_in, [step_size, 1, 1])  # batch_size * in_height, in_width, size
-        abs_map = tf.reshape(abs_map, [step_size, in_height, in_width, size])
-        theta = tf.random_uniform((1, 2, 3))
+        abs_map = tf.reshape(abs_map, [step_size, height, width, hidden_size])
 
-        transform_input = tf.expand_dims(m_in, 0)
-        with tf.control_dependencies([
-            tf.assert_equal(tf.shape(theta0), [step_size, 2, 3],
-                            message='theta0 not the right shape'),
-            # tf.Print(transform_input, [tf.shape(theta0)], message='shape theta0'),
-            tf.assert_equal(tf.shape(abs_map), [step_size, in_height, in_width, size],
-                            message='abs_map not right shape'),
-            tf.assert_equal(tf.shape(add), [step_size, in_height, in_width, size],
-                            message='abs_map not right shape')
-        ]):
-            transformed = transformer(abs_map, theta0, (in_height, in_width))
-            transformed = tf.reshape(transformed, [step_size, in_height, in_width, size])
-            transformed = alpha * transformed + (1 - alpha) * add
-            # necessary to supply shape information for subsequent ops
+        transformed = transformer(abs_map, theta, (height, width))
+        transformed = tf.reshape(transformed, [step_size, height, width, hidden_size])
+        transformed = alpha * transformed + (1 - alpha) * add
 
-        with tf.control_dependencies([
-            tf.Print(abs_map, [tf.shape(transformed)], message='transformed', summarize=6),
-            tf.Print(abs_map, [tf.shape(alpha)], message='alpha', summarize=6),
-            tf.Print(abs_map, [tf.shape(add)], message='add', summarize=6)
-        ]):
+        # with tf.control_dependencies([
+        #     tf.Print(abs_map, [tf.shape(transformed)], message='transformed', summarize=6),
+        #     tf.Print(abs_map, [tf.shape(alpha)], message='alpha', summarize=6),
+        #     tf.Print(abs_map, [tf.shape(add)], message='add', summarize=6)
+        # ]):
 
-            lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
+        lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
-            self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
-            return tf.reduce_sum(transformed, axis=[1, 2])
+        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
+        return tf.reduce_sum(transformed, axis=[1, 2])
 
     def get_initial_features(self):
         return self.state_init  # TODO: carry over prev state and update the map
