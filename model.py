@@ -199,7 +199,7 @@ class NavPolicy(Policy):
     def pass_through_network(self, x):
         size = 50
         in_height = in_width = 4
-        lstm_size = 4 + in_height * in_width * size
+        lstm_size = 4 + (in_height * in_width * size) / 4
         step_size = tf.shape(self.x)[0]
 
         if use_tf100_api:
@@ -240,14 +240,24 @@ class NavPolicy(Policy):
         lstm_outputs = tf.squeeze(lstm_outputs, 0)
 
         alpha, angle, translation, add = tf.split(lstm_outputs, [1, 1, 2, -1], axis=1)
-        alpha = tf.reshape(alpha, [-1, 1, 1, 1])
-        add = tf.reshape(add, [-1, in_height, in_width, size])
+        alpha = tf.reshape(alpha, [step_size, 1, 1, 1])
+        add = tf.reshape(add, [step_size, in_height / 2, in_width / 2, size])
+        add = tf.concat([add, tf.zeros_like(add)], 1)
+        with tf.control_dependencies([
+            tf.assert_equal(tf.shape(add), [step_size, in_height, in_width/2, size],
+                            message='add not the right shape (1)'),
+        ]):
+            add = tf.concat([add, tf.zeros_like(add)], 2)
+        with tf.control_dependencies([
+            tf.assert_equal(tf.shape(add), [step_size, in_height, in_width, size],
+                            message='add not the right shape (2)'),
+        ]):
 
-        theta0 = tf.stack([
-            tf.concat([tf.cos(angle), tf.sin(angle)], 1),
-            tf.concat([-tf.sin(angle), tf.cos(angle)], 1),
-            translation
-        ], axis=2)
+            theta0 = tf.stack([
+                tf.concat([tf.cos(angle), tf.sin(angle)], 1),
+                tf.concat([-tf.sin(angle), tf.cos(angle)], 1),
+                translation
+            ], axis=2)
         # theta0 = tf.reshape(theta0, [-1, 6])
 
         abs_map = tf.tile(m_in, [step_size, 1, 1])  # batch_size * in_height, in_width, size
@@ -260,10 +270,12 @@ class NavPolicy(Policy):
                             message='theta0 not the right shape'),
             # tf.Print(transform_input, [tf.shape(theta0)], message='shape theta0'),
             tf.assert_equal(tf.shape(abs_map), [step_size, in_height, in_width, size],
+                            message='abs_map not right shape'),
+            tf.assert_equal(tf.shape(add), [step_size, in_height, in_width, size],
                             message='abs_map not right shape')
         ]):
             transformed = transformer(abs_map, theta0, (in_height, in_width))
-            transformed = tf.reshape(transformed, [-1, in_height, in_width, size])
+            transformed = tf.reshape(transformed, [step_size, in_height, in_width, size])
             transformed = alpha * transformed + (1 - alpha) * add
             # necessary to supply shape information for subsequent ops
 
