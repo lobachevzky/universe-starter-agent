@@ -230,6 +230,7 @@ class NavPolicy(Policy):
             state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
 
         x = tf.Print(x, [tf.shape(prev_action)], message='action')
+
         # x = tf.concat([x, (tf.expand_dims(prev_action, 0))], 1)
         x = tf.expand_dims(x, 0)
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
@@ -244,9 +245,9 @@ class NavPolicy(Policy):
         similarity = tf.squeeze(similarity, [0])
         lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
+        # with tf.control_dependencies([tf.assert_equal(step_size, 1)]):
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
         reduce_sum = tf.reduce_sum(similarity * abs_map, axis=[1, 2])
-        # with tf.control_dependencies([tf.Print(reduce_sum, [tf.shape(prev_action)], message='prev_ac')]):
         return reduce_sum
 
     def get_initial_features(self):
