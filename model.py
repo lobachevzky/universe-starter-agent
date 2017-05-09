@@ -5,6 +5,7 @@ import tensorflow.contrib.rnn as rnn
 import distutils.version
 import abc
 from gaussian_log import NormalWithLogScale
+from spatial_transformer import transformer
 
 use_tf100_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('1.0.0')
 
@@ -238,17 +239,27 @@ class NavPolicy(Policy):
             time_major=False)
         # lstm_outputs 1 x step_size x lstm_size
 
-        rel_map = tf.reshape(lstm_outputs, [step_size, filter_height, filter_width, size, 1])
         abs_map = tf.tile(m_in, [step_size, 1, 1])  # batch_size * in_height, in_width, size
         abs_map = tf.reshape(abs_map, [step_size, in_height, in_width, size])
-        similarity = tf.nn.conv3d(tf.expand_dims(abs_map, 0), rel_map, strides=[1, 1, 1, 1, 1], padding="SAME")
-        similarity = tf.squeeze(similarity, [0])
-        lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
+        theta = tf.random_uniform((1, 2, 3))
 
-        # with tf.control_dependencies([tf.assert_equal(step_size, 1)]):
-        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
-        reduce_sum = tf.reduce_sum(similarity * abs_map, axis=[1, 2])
-        return reduce_sum
+        transform_input = tf.expand_dims(m_in, 0)
+        with tf.control_dependencies([
+            tf.assert_equal(tf.shape(transform_input), [1, in_height, in_width, size],
+                            message='transform_input not the right shape'),
+            tf.assert_equal(tf.shape(transform_input)[0], tf.shape(theta)[0],
+                            message='batch_size for transform_input not the same as for theta')
+        ]):
+            transformed = transformer(transform_input, theta, (in_height, in_width))
+        with tf.control_dependencies([
+            tf.Print(abs_map, [tf.shape(transformed)], message='transformed', summarize=6),
+            tf.Print(abs_map, [tf.shape(abs_map)], message='abs_map', summarize=6)
+        ]):
+
+            lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
+
+            self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
+            return tf.reduce_sum(abs_map, axis=[1, 2])
 
     def get_initial_features(self):
         return self.state_init  # TODO: carry over prev state and update the map
