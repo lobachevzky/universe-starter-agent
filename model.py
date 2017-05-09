@@ -251,6 +251,9 @@ class NavPolicy(Policy):
                             message='batch_size for transform_input not the same as for theta')
         ]):
             transformed = transformer(transform_input, theta, (in_height, in_width))
+            transformed = tf.reshape(transformed, [-1, in_height, in_width, size])
+            # necessary to supply shape information for subsequent ops
+
         with tf.control_dependencies([
             tf.Print(abs_map, [tf.shape(transformed)], message='transformed', summarize=6),
             tf.Print(abs_map, [tf.shape(abs_map)], message='abs_map', summarize=6)
@@ -259,7 +262,7 @@ class NavPolicy(Policy):
             lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
             self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
-            return tf.reduce_sum(abs_map, axis=[1, 2])
+            return tf.reduce_sum(transformed, axis=[1, 2])
 
     def get_initial_features(self):
         return self.state_init  # TODO: carry over prev state and update the map
