@@ -198,8 +198,8 @@ class LSTMpolicy(Policy):
 class NavPolicy(Policy):
     def pass_through_network(self, x):
         size = 50
-        filter_height = filter_width = 3
-        lstm_size = filter_height * filter_width * size
+        in_height = in_width = 4
+        lstm_size = 3 + in_height * in_width * size
         step_size = tf.shape(self.x)[0]
 
         if use_tf100_api:
@@ -209,7 +209,6 @@ class NavPolicy(Policy):
 
         self.state_size = lstm.state_size
 
-        in_height = in_width = 40
 
         m_shape = (in_height, in_width, size)
         c_init = np.zeros((1, lstm.state_size.c), np.float32)
@@ -238,6 +237,16 @@ class NavPolicy(Policy):
             lstm, x, initial_state=state_in, sequence_length=[step_size],
             time_major=False)
         # lstm_outputs 1 x step_size x lstm_size
+        lstm_outputs = tf.squeeze(lstm_outputs, 0)
+
+        angle, translation, add = tf.split(lstm_outputs, [1, 2, -1], axis=1)
+
+        theta0 = tf.stack([
+            tf.concat([tf.cos(angle), tf.sin(angle)], 1),
+            tf.concat([-tf.sin(angle), tf.cos(angle)], 1),
+            translation
+        ], axis=2)
+        # theta0 = tf.reshape(theta0, [-1, 6])
 
         abs_map = tf.tile(m_in, [step_size, 1, 1])  # batch_size * in_height, in_width, size
         abs_map = tf.reshape(abs_map, [step_size, in_height, in_width, size])
@@ -245,12 +254,13 @@ class NavPolicy(Policy):
 
         transform_input = tf.expand_dims(m_in, 0)
         with tf.control_dependencies([
-            tf.assert_equal(tf.shape(transform_input), [1, in_height, in_width, size],
-                            message='transform_input not the right shape'),
-            tf.assert_equal(tf.shape(transform_input)[0], tf.shape(theta)[0],
-                            message='batch_size for transform_input not the same as for theta')
+            tf.assert_equal(tf.shape(theta0), [step_size, 2, 3],
+                            message='theta0 not the right shape'),
+            tf.Print(transform_input, [tf.shape(theta0)], message='shape theta0'),
+            tf.assert_equal(tf.shape(abs_map), [step_size, in_height, in_width, size],
+                            message='abs_map not right shape')
         ]):
-            transformed = transformer(transform_input, theta, (in_height, in_width))
+            transformed = transformer(abs_map, theta0, (in_height, in_width))
             transformed = tf.reshape(transformed, [-1, in_height, in_width, size])
             # necessary to supply shape information for subsequent ops
 
