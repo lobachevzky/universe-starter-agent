@@ -199,7 +199,7 @@ class NavPolicy(Policy):
     def pass_through_network(self, x):
         size = 50
         in_height = in_width = 4
-        lstm_size = 3 + in_height * in_width * size
+        lstm_size = 4 + in_height * in_width * size
         step_size = tf.shape(self.x)[0]
 
         if use_tf100_api:
@@ -239,7 +239,9 @@ class NavPolicy(Policy):
         # lstm_outputs 1 x step_size x lstm_size
         lstm_outputs = tf.squeeze(lstm_outputs, 0)
 
-        angle, translation, add = tf.split(lstm_outputs, [1, 2, -1], axis=1)
+        alpha, angle, translation, add = tf.split(lstm_outputs, [1, 1, 2, -1], axis=1)
+        alpha = tf.reshape(alpha, [-1, 1, 1, 1])
+        add = tf.reshape(add, [-1, in_height, in_width, size])
 
         theta0 = tf.stack([
             tf.concat([tf.cos(angle), tf.sin(angle)], 1),
@@ -256,17 +258,19 @@ class NavPolicy(Policy):
         with tf.control_dependencies([
             tf.assert_equal(tf.shape(theta0), [step_size, 2, 3],
                             message='theta0 not the right shape'),
-            tf.Print(transform_input, [tf.shape(theta0)], message='shape theta0'),
+            # tf.Print(transform_input, [tf.shape(theta0)], message='shape theta0'),
             tf.assert_equal(tf.shape(abs_map), [step_size, in_height, in_width, size],
                             message='abs_map not right shape')
         ]):
             transformed = transformer(abs_map, theta0, (in_height, in_width))
             transformed = tf.reshape(transformed, [-1, in_height, in_width, size])
+            transformed = alpha * transformed + (1 - alpha) * add
             # necessary to supply shape information for subsequent ops
 
         with tf.control_dependencies([
             tf.Print(abs_map, [tf.shape(transformed)], message='transformed', summarize=6),
-            tf.Print(abs_map, [tf.shape(abs_map)], message='abs_map', summarize=6)
+            tf.Print(abs_map, [tf.shape(alpha)], message='alpha', summarize=6),
+            tf.Print(abs_map, [tf.shape(add)], message='add', summarize=6)
         ]):
 
             lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
