@@ -209,29 +209,24 @@ class NavPolicy(Policy):
 
         self.state_size = lstm.state_size
 
-
-        m_shape = (in_height, in_width, size)
+        m_shape = in_height, in_width, size
         c_init = np.zeros((1, lstm.state_size.c), np.float32)
         h_init = np.zeros((1, lstm.state_size.h), np.float32)
         m_init = np.zeros(m_shape, np.float32)
-        prev_action_init = np.zeros(self.ac_space.shape, np.float32)
 
-        self.state_init = [c_init, h_init, m_init, prev_action_init]
+        self.state_init = [c_init, h_init, m_init]
         c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
         h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
         m_in = tf.placeholder(tf.float32, m_shape)
-        prev_action = tf.placeholder(tf.float32, self.ac_space.shape)
 
-        self.state_in = [c_in, h_in, m_in, prev_action]
+        self.state_in = [c_in, h_in, m_in]
 
         if use_tf100_api:
             state_in = rnn.LSTMStateTuple(c_in, h_in)
         else:
             state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
 
-        x = tf.Print(x, [tf.shape(prev_action)], message='action')
 
-        # x = tf.concat([x, (tf.expand_dims(prev_action, 0))], 1)
         x = tf.expand_dims(x, 0)
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
             lstm, x, initial_state=state_in, sequence_length=[step_size],
@@ -244,7 +239,7 @@ class NavPolicy(Policy):
         add = tf.reshape(add, [step_size, in_height / 2, in_width / 2, size])
         add = tf.concat([add, tf.zeros_like(add)], 1)
         with tf.control_dependencies([
-            tf.assert_equal(tf.shape(add), [step_size, in_height, in_width/2, size],
+            tf.assert_equal(tf.shape(add), [step_size, in_height, in_width / 2, size],
                             message='add not the right shape (1)'),
         ]):
             add = tf.concat([add, tf.zeros_like(add)], 2)
@@ -293,22 +288,20 @@ class NavPolicy(Policy):
     def get_initial_features(self):
         return self.state_init  # TODO: carry over prev state and update the map
 
-    def act(self, ob, c, h, m, prev_action):
+    def act(self, ob, c, h, m):
         sess = tf.get_default_session()
-        return sess.run([self.action, self.vf] + self.state_out + [self.action],
+        return sess.run([self.action, self.vf] + self.state_out,
                         {self.x: [ob],
                          self.state_in[0]: c,
                          self.state_in[1]: h,
                          self.state_in[2]: m,
-                         self.state_in[3]: prev_action
                          })
 
-    def value(self, ob, c, h, m, prev_action):
+    def value(self, ob, c, h, m):
         sess = tf.get_default_session()
         return sess.run(self.vf,
                         {self.x: [ob],
                          self.state_in[0]: c,
                          self.state_in[1]: h,
                          self.state_in[2]: m,
-                         self.state_in[3]: prev_action
                          })[0]
