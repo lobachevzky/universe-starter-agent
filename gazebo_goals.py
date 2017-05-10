@@ -197,7 +197,7 @@ class Gazebo(gym.Env):
 
     # dummy methods to meet interface
 
-    def _render(self, _, **kwargs):
+    def _render(self, **kwargs):
         pass
 
     def _close(self):

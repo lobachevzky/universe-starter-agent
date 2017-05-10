@@ -77,15 +77,32 @@ class Policy(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, ob_space, ac_space):
-        self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
+        self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space.shape))
 
         self.ac_space = ac_space
+        self.ob_space = ob_space
 
-        if len(list(ob_space)) > 1:
-            for i in range(4):
-                x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
+        # pull out 'subsections' if specified by the environment. This allows the environment to pass
+        # in multiple inputs with different shapes (e.g. an image along with the previous action)
+        try:
+            subsections = tf.split(x, ob_space.subsections, axis=1)
+            obs = []
+            for subsection, shape in zip(subsections, ob_space.subsection_shapes):
+                obs += [tf.reshape(subsection, shape)]
 
-        h = self.pass_through_network(flatten(x))
+        except AttributeError:
+            obs = [x]
+
+        for i, ob in enumerate(obs):
+            print(ob.shape)
+            if len(list(ob.shape)) == 4:
+                for j in range(4):
+                    obs[i] = tf.nn.elu(conv2d(obs[i], 32, "l{}".format(j + 1), [3, 3], [2, 2]))
+            obs[i] = flatten(obs[i])
+
+        obs = tf.concat(obs, axis=1)
+
+        h = self.pass_through_network(obs)
 
         if ac_space.is_continuous:
             n_dist_params = 2
@@ -230,7 +247,7 @@ class NavPolicy(Policy):
         x = tf.expand_dims(x, 0)
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
             lstm, x, initial_state=state_in, sequence_length=[step_size],
-            time_major=False) # lstm_outputs 1 x step_size x lstm_size
+            time_major=False)  # lstm_outputs 1 x step_size x lstm_size
 
         lstm_outputs = tf.squeeze(lstm_outputs, 0)
 
