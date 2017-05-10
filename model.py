@@ -78,6 +78,7 @@ class Policy(object):
 
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
+
         self.ac_space = ac_space
 
         if len(list(ob_space)) > 1:
@@ -229,8 +230,8 @@ class NavPolicy(Policy):
         x = tf.expand_dims(x, 0)
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
             lstm, x, initial_state=state_in, sequence_length=[step_size],
-            time_major=False)
-        # lstm_outputs 1 x step_size x lstm_size
+            time_major=False) # lstm_outputs 1 x step_size x lstm_size
+
         lstm_outputs = tf.squeeze(lstm_outputs, 0)
 
         alpha, angle, translation, add = tf.split(lstm_outputs, [1, 1, 2, -1], axis=1)
@@ -249,14 +250,7 @@ class NavPolicy(Policy):
         abs_map = tf.reshape(abs_map, [step_size, height, width, hidden_size])
 
         transformed = transformer(abs_map, theta, (height, width))
-        transformed = tf.reshape(transformed, [step_size, height, width, hidden_size])
         transformed = alpha * transformed + (1 - alpha) * add
-
-        # with tf.control_dependencies([
-        #     tf.Print(abs_map, [tf.shape(transformed)], message='transformed', summarize=6),
-        #     tf.Print(abs_map, [tf.shape(alpha)], message='alpha', summarize=6),
-        #     tf.Print(abs_map, [tf.shape(add)], message='add', summarize=6)
-        # ]):
 
         lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
