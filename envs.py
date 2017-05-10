@@ -14,7 +14,9 @@ from universe.wrappers import BlockingReset, GymCoreAction, EpisodeID, Unvectori
 from universe import spaces as vnc_spaces
 from universe.spaces.vnc_event import keycode
 import time
-from gazebo import Gazebo
+
+import nav_goal_env
+import progress_env
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -22,11 +24,17 @@ universe.configure_logging()
 
 
 def create_env(env_id, client_id, remotes, **kwargs):
-    if env_id == 'gazebo':
-        env = Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
+    if env_id == 'progress':
+        env = progress_env.Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
         env = TimeLimit(env)
         env = create_normal_env(env)
         env.spec = EnvSpec('Gazebo-v0', max_episode_steps=300)
+        return env
+    if env_id == 'nav-goal':
+        env = nav_goal_env.Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
+        env = TimeLimit(env)
+        env = create_normal_env(env)
+        env.spec = EnvSpec('Gazebo-v1', max_episode_steps=300)
         return env
 
     spec = gym.spec(env_id)
@@ -36,6 +44,14 @@ def create_env(env_id, client_id, remotes, **kwargs):
         return create_vncatari_env(env_id, client_id, remotes, **kwargs)
     else:
         return create_normal_env(gym.make(env_id))
+
+
+def create_gazebo_env(env):
+    env = env(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
+    env = TimeLimit(env)
+    env = create_normal_env(env)
+    env.spec = EnvSpec('Gazebo-v0', max_episode_steps=300)
+    return env
 
 
 def create_flash_env(env_id, client_id, remotes, **_):
