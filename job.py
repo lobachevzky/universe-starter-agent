@@ -14,6 +14,9 @@ import logging
 import sys, signal
 import time
 import os
+
+from tensorflow.python.framework.errors_impl import InvalidArgumentError
+
 from a3c import A3C
 from envs import create_env
 import distutils.version
@@ -89,11 +92,15 @@ def run(args, server):
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
 
-    with sv.managed_session(server.target, config=config) as sess, sess.as_default():
+    # Couldn't get managed_session to work with docker. A good TODO for future developers
+    # with sv.managed_session(server.target, config=config) as sess, sess.as_default():
+    with tf.Session(server.target, config=config) as sess, sess.as_default():
+        init_fn(sess)
 
-        # For some reason, without this line, saver.py throws
-        # `NotFoundError: /logs/train/model.ckpt-0.data-00000-of-00001.tempstate12439592398502750378`
-        saver.save(sess, logdir)
+        try:
+            saver.restore(sess, logdir)
+        except InvalidArgumentError:
+            saver.save(sess, logdir)
 
         sess.run(trainer.sync)
         trainer.start(sess, summary_writer)
