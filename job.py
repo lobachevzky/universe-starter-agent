@@ -100,7 +100,7 @@ def run(args, server):
         try:
             saver.restore(sess, logdir)
         except InvalidArgumentError:
-            saver.save(sess, logdir)
+            pass
 
         sess.run(trainer.sync)
         trainer.start(sess, summary_writer)
