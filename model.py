@@ -5,6 +5,7 @@ import tensorflow.contrib.rnn as rnn
 import distutils.version
 import abc
 from gaussian_log import NormalWithLogScale
+from spatial_transformer import transformer
 
 use_tf100_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('1.0.0')
 
@@ -76,13 +77,32 @@ class Policy(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, ob_space, ac_space):
-        self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
+        self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space.shape))
 
-        if len(list(ob_space)) > 1:
-            for i in range(4):
-                x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
+        self.ac_space = ac_space
+        self.ob_space = ob_space
 
-        h = self.pass_through_network(flatten(x))
+        # pull out 'subsections' if specified by the environment. This allows the environment to pass
+        # in multiple inputs with different shapes (e.g. an image along with the previous action)
+        try:
+            subsections = tf.split(x, ob_space.subsections, axis=1)
+            obs = []
+            for subsection, shape in zip(subsections, ob_space.subsection_shapes):
+                obs += [tf.reshape(subsection, shape)]
+
+        except AttributeError:
+            obs = [x]
+
+        for i, ob in enumerate(obs):
+            print(ob.shape)
+            if len(list(ob.shape)) == 4:
+                for j in range(4):
+                    obs[i] = tf.nn.elu(conv2d(obs[i], 32, "l{}".format(j + 1), [3, 3], [2, 2]))
+            obs[i] = flatten(obs[i])
+
+        obs = tf.concat(obs, axis=1)
+
+        h = self.pass_through_network(obs)
 
         if ac_space.is_continuous:
             n_dist_params = 2
@@ -104,7 +124,6 @@ class Policy(object):
             self.action = tf.squeeze(self.dist.sample())  # [bsize, ac_space.dim]
 
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
-        self.ac_space = ac_space
 
     def log_prob(self, actions):
         if self.ac_space.is_discrete:
@@ -192,3 +211,86 @@ class LSTMpolicy(Policy):
     def value(self, ob, c, h):
         sess = tf.get_default_session()
         return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
+
+
+class NavPolicy(Policy):
+    def pass_through_network(self, x):
+        hidden_size = 50
+        height = width = 4
+        lstm_size = 4 + (height * width * hidden_size) / 4
+        step_size = tf.shape(self.x)[0]
+
+        if use_tf100_api:
+            lstm = rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
+        else:
+            lstm = rnn.rnn_cell.BasicLSTMCell(lstm_size, state_is_tuple=True)
+
+        self.state_size = lstm.state_size
+
+        m_shape = height, width, hidden_size
+        c_init = np.zeros((1, lstm.state_size.c), np.float32)
+        h_init = np.zeros((1, lstm.state_size.h), np.float32)
+        m_init = np.zeros(m_shape, np.float32)
+
+        self.state_init = [c_init, h_init, m_init]
+        c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
+        h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
+        m_in = tf.placeholder(tf.float32, m_shape)
+
+        self.state_in = [c_in, h_in, m_in]
+
+        if use_tf100_api:
+            state_in = rnn.LSTMStateTuple(c_in, h_in)
+        else:
+            state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
+
+        x = tf.expand_dims(x, 0)
+        lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+            lstm, x, initial_state=state_in, sequence_length=[step_size],
+            time_major=False)  # lstm_outputs 1 x step_size x lstm_size
+
+        lstm_outputs = tf.squeeze(lstm_outputs, 0)
+
+        alpha, angle, translation, add = tf.split(lstm_outputs, [1, 1, 2, -1], axis=1)
+        alpha = tf.reshape(alpha, [step_size, 1, 1, 1])
+        add = tf.reshape(add, [step_size, height / 2, width / 2, hidden_size])
+        add = tf.concat([add, tf.zeros_like(add)], 1)
+        add = tf.concat([add, tf.zeros_like(add)], 2)
+
+        theta = tf.stack([
+            tf.concat([tf.cos(angle), tf.sin(angle)], 1),
+            tf.concat([-tf.sin(angle), tf.cos(angle)], 1),
+            translation
+        ], axis=2)
+
+        abs_map = tf.tile(m_in, [step_size, 1, 1])  # batch_size * in_height, in_width, size
+        abs_map = tf.reshape(abs_map, [step_size, height, width, hidden_size])
+
+        transformed = transformer(abs_map, theta, (height, width))
+        transformed = alpha * transformed + (1 - alpha) * add
+
+        lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
+
+        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
+        return tf.reduce_sum(transformed, axis=[1, 2])
+
+    def get_initial_features(self):
+        return self.state_init  # TODO: carry over prev state and update the map
+
+    def act(self, ob, c, h, m):
+        sess = tf.get_default_session()
+        return sess.run([self.action, self.vf] + self.state_out,
+                        {self.x: [ob],
+                         self.state_in[0]: c,
+                         self.state_in[1]: h,
+                         self.state_in[2]: m,
+                         })
+
+    def value(self, ob, c, h, m):
+        sess = tf.get_default_session()
+        return sess.run(self.vf,
+                        {self.x: [ob],
+                         self.state_in[0]: c,
+                         self.state_in[1]: h,
+                         self.state_in[2]: m,
+                         })[0]
