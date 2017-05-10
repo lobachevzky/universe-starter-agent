@@ -2,7 +2,7 @@
 import rospy
 import numpy as np
 import rospy
-from progress_env import Gazebo
+from gazebo_progress import Gazebo
 from std_srvs import srv
 
 env = Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
