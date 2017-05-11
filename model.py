@@ -61,10 +61,8 @@ def categorical_dist(param_tensor):
 
 
 def get_action(param_tensor, ac_shape, continuous):
-    with tf.control_dependencies(tf.assert_equal(tf.shape(param_tensor)[1:],
-                                                 [len(ac_shape), 2])):
-        dist = normal_dist(param_tensor) if continuous else categorical_dist(param_tensor)
-        return tf.reshape(dist.sample(), ac_shape)
+    dist = normal_dist(param_tensor) if continuous else categorical_dist(param_tensor)
+    return tf.reshape(dist.sample(), ac_shape)
 
 
 def log_prob(actions, dist, discrete):
@@ -85,14 +83,13 @@ class Policy(object):
         # pull out 'subsections' if specified by the environment. This allows the environment to pass
         # in multiple inputs with different shapes (e.g. an image along with the previous action)
         try:
-            subsections = tf.split(x, ob_space.subsections, axis=1)
+            subspaces = tf.split(x, ob_space.subspaces, axis=1)
             obs = []
-            for subsection, shape in zip(subsections, ob_space.subsection_shapes):
-                obs += [tf.reshape(subsection, shape)]
+            for subsection, shape in zip(subspaces, ob_space.subspace_shapes):
+                obs += [tf.reshape(subsection, [-1] + list(shape))]
         except AttributeError:
             obs = [x]
         for i, ob in enumerate(obs):
-            print(ob.shape)
             if len(list(ob.shape)) == 4:
                 for j in range(4):
                     obs[i] = tf.nn.elu(conv2d(obs[i], 32, "l{}".format(j + 1), [3, 3], [2, 2]))

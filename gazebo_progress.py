@@ -73,6 +73,10 @@ def set_random_pos():
     )])
 
 
+def combine(images, action):
+    return np.concatenate([images.flatten(), action])
+
+
 class Gazebo(gym.Env):
     def __init__(self, action_shape, reward_file='reward.csv'):
 
@@ -120,8 +124,8 @@ class Gazebo(gym.Env):
         self._observation_space = ObservationSpace((observation_size,))
         self._action_space = ActionSpace(action_shape)
 
-        self._observation_space.subsections = [image_size, action_size]
-        self._observation_space.subsection_shapes = [image_shape, (action_size,)]
+        self._observation_space.subspaces = [image_size, action_size]
+        self._observation_space.subspace_shapes = [image_shape, (action_size,)]
 
         self._progress = 0  # updated at each call to step
         self._reward_file = reward_file
@@ -162,9 +166,8 @@ class Gazebo(gym.Env):
             progress = calculate_progress(self._tf_listener)
             reward = calculate_reward(progress, self._progress)
             self._progress = progress
-            new_state = np.concatenate((self._images.flatten(), action), 1)
-            print("shape of new state: {}".format(new_state.shape))
-            print("shape of substates: {}".format(self._observation_space.subspace_shapes))
+            new_state = combine(self._images, action)
+            assert new_state.shape == (72 * 32 + 3,)
             return new_state, reward, self._done, {}
 
     def _takeoff(self):
@@ -178,7 +181,9 @@ class Gazebo(gym.Env):
             self._progress = 0
             self._done = False
         with self._images_lock:
-            return self._images
+            n = combine(self._images, [0, 0, 0])
+            assert n.shape == (2307,)
+            return n
 
     def pause(self):
         self._land_publisher.publish(msg.Empty())
