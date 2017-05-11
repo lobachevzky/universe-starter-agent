@@ -7,9 +7,7 @@ class Continuous(Box):
         self._shape = shape
 
     def dim(self):
-        size = np.array(self._shape).prod()
-        assert size == 3, 'size == {}'.format(size)
-        return size
+        return np.array(self._shape).prod()
 
     @property
     def n(self):
@@ -17,7 +15,6 @@ class Continuous(Box):
 
     @property
     def shape(self):
-        assert self._shape in [(3,), (72, 32, 1)], 'shape == {}'.format(self._shape)
         return self._shape
 
 
