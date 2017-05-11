@@ -5,7 +5,7 @@ import rospy
 from gazebo_progress import Gazebo
 from std_srvs import srv
 
-env = Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
+env = Gazebo(action_shape=(3,))
 env.reset()
 
 # rospy.loginfo('resetting...')

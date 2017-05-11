@@ -89,17 +89,14 @@ class Policy(object):
             obs = []
             for subsection, shape in zip(subsections, ob_space.subsection_shapes):
                 obs += [tf.reshape(subsection, shape)]
-
         except AttributeError:
             obs = [x]
-
         for i, ob in enumerate(obs):
             print(ob.shape)
             if len(list(ob.shape)) == 4:
                 for j in range(4):
                     obs[i] = tf.nn.elu(conv2d(obs[i], 32, "l{}".format(j + 1), [3, 3], [2, 2]))
             obs[i] = flatten(obs[i])
-
         obs = tf.concat(obs, axis=1)
 
         h = self.pass_through_network(obs)

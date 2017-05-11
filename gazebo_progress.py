@@ -74,11 +74,7 @@ def set_random_pos():
 
 
 class Gazebo(gym.Env):
-    def __init__(self,
-                 observation_range,
-                 action_range,
-                 action_shape,
-                 reward_file='reward.csv'):
+    def __init__(self, action_shape, reward_file='reward.csv'):
 
         rospy.init_node('environment')
         self._done = False
@@ -118,6 +114,7 @@ class Gazebo(gym.Env):
         rospy.loginfo('Got image dimensions.')
 
         # spaces
+        # self.subsections = [, 3]
         self._observation_space = ObservationSpace(observation_shape)
         self._action_space = ActionSpace(action_shape)
         self._progress = 0  # updated at each call to step

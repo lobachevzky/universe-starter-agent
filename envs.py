@@ -25,13 +25,13 @@ universe.configure_logging()
 
 def create_env(env_id, client_id, remotes, **kwargs):
     if env_id == 'gazebo-progress':
-        env = gazebo_progress.Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
+        env = gazebo_progress.Gazebo(action_shape=(3,))
         env = TimeLimit(env)
         env = create_normal_env(env)
         env.spec = EnvSpec('Gazebo-v0', max_episode_steps=300)
         return env
     if env_id == 'gazebo-goals':
-        env = gazebo_goals.Gazebo(observation_range=(-1, 1), action_range=(-1, 1), action_shape=(3,))
+        env = gazebo_goals.Gazebo(action_shape=(3,))
         env = TimeLimit(env)
         env = create_normal_env(env)
         env.spec = EnvSpec('Gazebo-v1', max_episode_steps=300)
