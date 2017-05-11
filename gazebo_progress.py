@@ -106,17 +106,23 @@ class Gazebo(gym.Env):
         while True:
             with self._images_lock:
                 if self._image_queue.full():
-                    observation_shape = self._images.shape
-                    rospy.loginfo(observation_shape)
+                    image_shape = self._images.shape
+                    rospy.loginfo(image_shape)
                     break
             # prevent CPU burnout
             rospy.wait_for_message('ardrone/image_raw', Image)
         rospy.loginfo('Got image dimensions.')
 
         # spaces
-        # self.subsections = [, 3]
-        self._observation_space = ObservationSpace(observation_shape)
+        image_size = np.array(image_shape).prod(dtype=int)
+        action_size = 3
+        observation_size = image_size + action_size
+        self._observation_space = ObservationSpace((observation_size,))
         self._action_space = ActionSpace(action_shape)
+
+        self._observation_space.subsections = [image_size, action_size]
+        self._observation_space.subsection_shapes = [image_shape, (action_size,)]
+
         self._progress = 0  # updated at each call to step
         self._reward_file = reward_file
 
@@ -156,7 +162,10 @@ class Gazebo(gym.Env):
             progress = calculate_progress(self._tf_listener)
             reward = calculate_reward(progress, self._progress)
             self._progress = progress
-            return self._images, reward, self._done, {}
+            new_state = np.concatenate((self._images.flatten(), action), 1)
+            print("shape of new state: {}".format(new_state.shape))
+            print("shape of substates: {}".format(self._observation_space.subspace_shapes))
+            return new_state, reward, self._done, {}
 
     def _takeoff(self):
         self._takeoff_publisher.publish(msg.Empty())
