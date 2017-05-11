@@ -42,20 +42,6 @@ class Box(Space):
     def is_continuous(self):
         return True
 
-    @abstractproperty
-    def low(self):
-        """
-        :return: array of lower bounds for each dimension of space
-        """
-        pass
-
-    @abstractproperty
-    def high(self):
-        """
-        :return: array of upper bounds for each dimension of space
-        """
-        pass
-
     @abstractmethod
     def dim(self):
         """

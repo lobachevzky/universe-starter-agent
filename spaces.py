@@ -3,30 +3,13 @@ from interface import Box
 
 
 class Continuous(Box):
-    def __init__(self, low, high, shape=None):
-
-        def init(bound):
-            if hasattr(bound, 'shape'):
-                return bound
-            else:
-                assert shape is not None, \
-                    "if either `low` or `high` are floats, then `shape` must be specified"
-                return bound + np.zeros(shape)
-
-        self._low = init(low)
-        self._high = init(high)
-        assert (self._high.shape == self._low.shape)
+    def __init__(self, shape=None):
+        self._shape = shape
 
     def dim(self):
-        return self._low.size
-
-    @property
-    def low(self):
-        return self._low
-
-    @property
-    def high(self):
-        return self._high
+        size = np.array(self._shape).prod()
+        assert size == 3, 'size == {}'.format(size)
+        return size
 
     @property
     def n(self):
@@ -34,7 +17,8 @@ class Continuous(Box):
 
     @property
     def shape(self):
-        return self._low.shape
+        assert self._shape in [(3,), (72, 32, 1)], 'shape == {}'.format(self._shape)
+        return self._shape
 
 
 class ActionSpace(Continuous):

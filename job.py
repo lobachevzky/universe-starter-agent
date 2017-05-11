@@ -99,7 +99,7 @@ def run(args, server):
 
         try:
             saver.restore(sess, logdir)
-        except InvalidArgumentError:
+        except tf.errors.NotFoundError:
             pass
 
         sess.run(trainer.sync)

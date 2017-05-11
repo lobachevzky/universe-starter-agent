@@ -118,8 +118,8 @@ class Gazebo(gym.Env):
         rospy.loginfo('Got image dimensions.')
 
         # spaces
-        self._observation_space = ObservationSpace(*observation_range, shape=observation_shape)
-        self._action_space = ActionSpace(*action_range, shape=action_shape)
+        self._observation_space = ObservationSpace(observation_shape)
+        self._action_space = ActionSpace(action_shape)
         self._progress = 0  # updated at each call to step
         self._reward_file = reward_file
 
