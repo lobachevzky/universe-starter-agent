@@ -27,7 +27,7 @@ def create_env(env_id, client_id, remotes, **kwargs):
     if env_id == 'gazebo-progress':
         return create_gazebo_env(gazebo_progress.Gazebo, 'Gazebo-v0', 300)
     if env_id == 'gazebo-goals':
-        return create_gazebo_env(gazebo_goals.Gazebo, 'Gazebo-v1', 3000000)
+        return create_gazebo_env(gazebo_goals.Gazebo, 'Gazebo-v1', 3000000) # TODO: set this to None or something
 
     spec = gym.spec(env_id)
     if spec.tags.get('flashgames', False):

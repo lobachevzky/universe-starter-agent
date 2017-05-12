@@ -68,6 +68,7 @@ def reached(goal, model_names):
     pos = state.pose.position
     vector_to_goal = np.array([pos.x, pos.y, pos.z])
     distance_to_goal = np.linalg.norm(vector_to_goal, ord=2)
+    # print('{}: {}'.format(goal_name, distance_to_goal))
     return distance_to_goal < MIN_DISTANCE
 
 
@@ -152,7 +153,7 @@ class Gazebo(gym.Env):
         action_size = 3
 
         self._goals = [0, 1]
-        self._goal = 0
+        self._goal = 1
         num_goals = len(self._goals)
         subspaces = [image_size, action_size, num_goals]
         self._observation_space = ObservationSpace((sum(subspaces),))

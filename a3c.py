@@ -126,7 +126,6 @@ runner appends the policy to the queue.
         rollout = PartialRollout()
 
         for _ in range(num_local_steps):
-            # TODO: why isn't this ob reshape working?
 
             fetched = policy.act(last_state, *last_features)
             action, value_, features = fetched[0], fetched[1], fetched[2:]

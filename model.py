@@ -178,6 +178,7 @@ class LSTMpolicy(Policy):
         c_init = np.zeros((1, lstm.state_size.c), np.float32)
         h_init = np.zeros((1, lstm.state_size.h), np.float32)
         self.state_init = [c_init, h_init]
+
         c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
         h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
         self.state_in = [c_in, h_in]
@@ -213,8 +214,7 @@ class NavPolicy(Policy):
         hidden_size = 50
         height = width = 4
         lstm_size = 4 + (height * width * hidden_size) / 4
-        with tf.control_dependencies([tf.Print(self.x, [tf.shape(self.x)], message='shape x')]):
-            step_size = tf.shape(self.x)[0]
+        step_size = tf.shape(self.x)[0]
 
         if use_tf100_api:
             lstm = rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)

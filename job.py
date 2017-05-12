@@ -196,6 +196,7 @@ Setting up Tensorflow for data parallel work
         print('################# SERVER ######################')
         print(server.target)
         print('################# SERVER ######################')
+
         run(args, server)
     else:
         tf.train.Server(cluster, job_name="ps", task_index=args.task,
