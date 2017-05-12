@@ -1182,81 +1182,6 @@
         <kinematic>0</kinematic>
       </link>
     </model>
-    <state world_name='default'>
-      <sim_time>2858 88000000</sim_time>
-      <real_time>33 459937793</real_time>
-      <wall_time>1494609794 717621599</wall_time>
-      <iterations>2643736</iterations>
-      <model name='ground_plane'>
-        <pose frame=''>0 0 0 0 -0 0</pose>
-        <scale>1 1 1</scale>
-        <link name='link'>
-          <pose frame=''>0 0 0 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-      </model>
-      <model name='little-house'>
-        <pose frame=''>0.912009 0.667413 0 0 -0 0</pose>
-        <scale>1 1 1</scale>
-        <link name='Stairs_1'>
-          <pose frame=''>0.912009 0.667413 0 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='Wall_11'>
-          <pose frame=''>0.716197 2.03488 0 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='Wall_12'>
-          <pose frame=''>2.3912 0.859886 0 0 0 -1.5708</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='Wall_6'>
-          <pose frame=''>0.912009 -3.00759 0 0 -0 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='Wall_7'>
-          <pose frame=''>4.83701 0.667413 0 0 -0 1.5708</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='Wall_8'>
-          <pose frame=''>0.912009 4.34241 0 0 -0 3.14159</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-        <link name='Wall_9'>
-          <pose frame=''>-3.01299 0.667413 0 0 0 -1.5708</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
-          <wrench>0 0 0 0 -0 0</wrench>
-        </link>
-      </model>
-      <model name='unit_box'>
-        <pose frame=''>5.52421 0.608386 0.499995 0 1e-05 0</pose>
-        <scale>1 1 1</scale>
-        <link name='link'>
-          <pose frame=''>5.52421 0.608386 0.499995 0 1e-05 0</pose>
-          <velocity>0 0 0 0 -0 0</velocity>
-          <acceleration>0.010615 0.006191 -9.78231 -0.012424 0.021225 -1.8e-05</acceleration>
-          <wrench>0.010615 0.006191 -9.78231 0 -0 0</wrench>
-        </link>
-      </model>
-      <light name='sun'>
-        <pose frame=''>0 0 10 0 -0 0</pose>
-      </light>
-    </state>
     <gui fullscreen='0'>
       <camera name='user_camera'>
         <pose frame=''>1.0677 0.989439 7.03636 5e-06 1.15549 -1.78142</pose>
@@ -1268,18 +1193,6 @@
       <pose frame=''>0 0 0 0 0 0</pose>
       <link name='link'>
         <pose frame=''>-2.05555 -1.93096 0.5 0 -0 0</pose>
-        <!--<inertial>-->
-          <!--<mass>73.2479</mass>-->
-          <!--<inertia>-->
-            <!--<ixx>128.231</ixx>-->
-            <!--<ixy>0</ixy>-->
-            <!--<ixz>0</ixz>-->
-            <!--<iyy>128.231</iyy>-->
-            <!--<iyz>0</iyz>-->
-            <!--<izz>128.231</izz>-->
-          <!--</inertia>-->
-          <!--<pose frame=''>0 0 0 0 -0 0</pose>-->
-        <!--</inertial>-->
         <self_collide>0</self_collide>
         <kinematic>0</kinematic>
         <gravity>0</gravity>
