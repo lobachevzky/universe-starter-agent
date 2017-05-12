@@ -107,6 +107,7 @@ def one_hot_goal(goal, goals):
     zeros[goal] = 1
     return zeros
 
+
 class Gazebo(gym.Env):
     def __init__(self, action_shape, reward_file='reward.csv'):
 
@@ -154,7 +155,6 @@ class Gazebo(gym.Env):
         self._goals = [0, 1]
         self._goal = 0
         num_goals = len(self._goals)
-
         subspaces = [image_size, action_size, num_goals]
         self._observation_space = ObservationSpace((sum(subspaces),))
         self._observation_space.subspaces = subspaces
@@ -208,7 +208,7 @@ class Gazebo(gym.Env):
             reward = 0
 
         with self._images_lock:
-            new_state = combine(self._images, action, [1, 0]) # one_hot_goal(self._goal, self._goals))
+            new_state = combine(self._images, action, [1, 0])  # one_hot_goal(self._goal, self._goals))
         return new_state, reward, False, {}
 
     def _takeoff(self):
@@ -220,7 +220,7 @@ class Gazebo(gym.Env):
             self._takeoff()
             self._crashed = False
         with self._images_lock:
-            return combine(self._images, [0, 0, 0], [0, 1]) # one_hot_goal(self._goal, self._goals))
+            return combine(self._images, [0, 0, 0], [0, 1])  # one_hot_goal(self._goal, self._goals))
 
     def pause(self):
         self._land_publisher.publish(msg.Empty())

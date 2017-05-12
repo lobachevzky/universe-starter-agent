@@ -171,6 +171,7 @@ class LSTMpolicy(Policy):
             lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
         else:
             lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
+
         self.state_size = lstm.state_size
         step_size = tf.shape(self.x)[:1]
 
@@ -212,7 +213,8 @@ class NavPolicy(Policy):
         hidden_size = 50
         height = width = 4
         lstm_size = 4 + (height * width * hidden_size) / 4
-        step_size = tf.shape(self.x)[0]
+        with tf.control_dependencies([tf.Print(self.x, [tf.shape(self.x)], message='shape x')]):
+            step_size = tf.shape(self.x)[0]
 
         if use_tf100_api:
             lstm = rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
