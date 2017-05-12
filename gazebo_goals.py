@@ -208,7 +208,7 @@ class Gazebo(gym.Env):
             reward = 0
 
         with self._images_lock:
-            new_state = combine(self._images, action, [1, 0])  # one_hot_goal(self._goal, self._goals))
+            new_state = combine(self._images, action, one_hot_goal(self._goal, self._goals))
         return new_state, reward, False, {}
 
     def _takeoff(self):
@@ -220,7 +220,7 @@ class Gazebo(gym.Env):
             self._takeoff()
             self._crashed = False
         with self._images_lock:
-            return combine(self._images, [0, 0, 0], [0, 1])  # one_hot_goal(self._goal, self._goals))
+            return combine(self._images, [0, 0, 0], one_hot_goal(self._goal, self._goals))
 
     def pause(self):
         self._land_publisher.publish(msg.Empty())
