@@ -38,6 +38,7 @@ class FastSaver(tf.train.Saver):
 
 
 def run(args, server):
+    # with tf.control_dependencies([tf.assert_equal(1, 0)]):
     env = create_env(args.env_id, client_id=str(args.task), remotes=args.remotes)
     trainer = A3C(env, args.task, args.visualise, eval(args.policy), args.learning_rate)
 

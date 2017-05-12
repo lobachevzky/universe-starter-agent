@@ -80,9 +80,9 @@ def get_debug_num(contact_msg):
     return int(first_match)
 
 
-def set_random_pos():
+def set_random_pos(goal):
     call_service('/gazebo/set_model_state', SetModelState, [ModelState(
-        model_name='quadrotor',
+        model_name='goal{}'.format(goal),
         pose=Pose(position=Point(
             x=random.uniform(0, 50),
             y=random.uniform(0, 50),
