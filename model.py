@@ -125,7 +125,7 @@ class Policy(object):
         return tf.reduce_sum(self.dist.log_prob(actions), axis=1)
 
     @abc.abstractmethod
-    def get_initial_features(self):
+    def get_initial_features(self, last_features=None):
         pass
 
     @abc.abstractmethod
@@ -147,7 +147,7 @@ class MLPpolicy(Policy):
         h = tf.nn.elu(linear(x, size1, 'h1'))
         return tf.nn.elu(linear(h, size2, 'h2'))
 
-    def get_initial_features(self):
+    def get_initial_features(self, _=None):
         return []
 
     def act(self, ob):
@@ -196,7 +196,7 @@ class LSTMpolicy(Policy):
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
         return tf.reshape(lstm_outputs, [-1, size])
 
-    def get_initial_features(self):
+    def get_initial_features(self, _=None):
         return self.state_init
 
     def act(self, ob, c, h):
@@ -209,6 +209,7 @@ class LSTMpolicy(Policy):
         return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
 
 
+# noinspection PyAttributeOutsideInit
 class NavPolicy(Policy):
     def pass_through_network(self, x):
         hidden_size = 50
@@ -270,8 +271,12 @@ class NavPolicy(Policy):
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
         return tf.reduce_sum(transformed, axis=[1, 2])
 
-    def get_initial_features(self):
-        return self.state_init  # TODO: carry over prev state and update the map
+    def get_initial_features(self, last_features=None):
+        if last_features is None:
+            c, h, m = self.state_init
+        else:
+            c, h, m = last_features
+        return [c, h, m]
 
     def act(self, ob, c, h, m):
         sess = tf.get_default_session()

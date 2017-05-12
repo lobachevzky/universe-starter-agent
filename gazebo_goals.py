@@ -209,7 +209,7 @@ class Gazebo(gym.Env):
 
         with self._images_lock:
             new_state = combine(self._images, action, one_hot_goal(self._goal, self._goals))
-        return new_state, reward, False, {}
+        return new_state, reward, crashed, {}
 
     def _takeoff(self):
         self._takeoff_publisher.publish(msg.Empty())

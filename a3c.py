@@ -117,7 +117,7 @@ the policy, and as long as the rollout exceeds a certain length, the thread
 runner appends the policy to the queue.
 """
     last_state = env.reset()  # .reshape(env.observation_space.shape)
-    last_features = policy.get_initial_features()
+    last_features = policy.get_initial_features(last_features=None)
     length = 0
     rewards = 0
 
@@ -154,7 +154,7 @@ runner appends the policy to the queue.
                 terminal_end = True
                 if length >= timestep_limit or not env.metadata.get('semantics.autoreset'):
                     last_state = env.reset()  # .reshape(env.observation_space.shape)
-                last_features = policy.get_initial_features()
+                last_features = policy.get_initial_features(last_features)
                 print("Episode finished. Sum of rewards: {}. Length: {}".format(rewards, length))
                 length = 0
                 rewards = 0
