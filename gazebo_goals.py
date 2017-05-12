@@ -32,9 +32,6 @@ def call_service(service, message_type=srv.Empty, args=None):
     return rospy.ServiceProxy(service, message_type)(*args)
 
 
-MODEL_NAMES = call_service('/gazebo/get_world_properties', GetWorldProperties).model_names
-
-
 def calculate_progress(tf_listener):
     target_frame = '/base_link'
     source_frame = '/nav'
@@ -63,9 +60,9 @@ def calculate_reward(reached_goal):
         return 0
 
 
-def reached(goal):
+def reached(goal, model_names):
     goal_name = 'goal' + str(goal)
-    assert goal_name in MODEL_NAMES, "'{}' not among valid names: {}".format(goal_name, MODEL_NAMES)
+    assert goal_name in model_names, "'{}' not among valid names: {}".format(goal_name, model_names)
     state = call_service('/gazebo/get_model_state', GetModelState,
                          ['quadrotor', '{}::link'.format(goal_name)])
     pos = state.pose.position
@@ -136,6 +133,8 @@ class Gazebo(gym.Env):
         self._takeoff_publisher = rospy.Publisher('ardrone/takeoff', msg.Empty, queue_size=1)
         self._land_publisher = rospy.Publisher('ardrone/land', msg.Empty, queue_size=1)
 
+        self.model_names = call_service('/gazebo/get_world_properties', GetWorldProperties).model_names
+
         # get observation shape
         rospy.loginfo('Waiting for first images...')
         while True:
@@ -201,7 +200,7 @@ class Gazebo(gym.Env):
         if crashed:
             reward = -1
             self._reset()
-        elif reached(self._goal):
+        elif reached(self._goal, self.model_names):
             reward = 10
             self._goal = choose_new_goal(self._goals, self._goal)
         else:
