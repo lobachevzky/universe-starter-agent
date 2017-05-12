@@ -102,6 +102,11 @@ def choose_new_goal(goals, old_goal):
     return random.choice(goals)
 
 
+def one_hot_goal(goal, goals):
+    zeros = np.zeros_like(goals)
+    zeros[goal] = 1
+    return zeros
+
 class Gazebo(gym.Env):
     def __init__(self, action_shape, reward_file='reward.csv'):
 
@@ -145,18 +150,19 @@ class Gazebo(gym.Env):
         # spaces
         image_size = np.array(image_shape).prod(dtype=int)
         action_size = 3
-        observation_size = image_size + action_size
-
-        self._observation_space = ObservationSpace((observation_size,))
-        self._action_space = ActionSpace(action_shape)
-
-        self._observation_space.subspaces = [image_size, action_size]
-        self._observation_space.subspace_shapes = [image_shape, (action_size,)]
-
-        self._reward_file = reward_file
 
         self._goals = [0, 1]
         self._goal = 0
+        num_goals = len(self._goals)
+
+        subspaces = [image_size, action_size, num_goals]
+        self._observation_space = ObservationSpace((sum(subspaces),))
+        self._observation_space.subspaces = subspaces
+        self._observation_space.subspace_shapes = [image_shape, (action_size,), (num_goals,)]
+
+        self._action_space = ActionSpace(action_shape)
+
+        self._reward_file = reward_file
 
         try:
             os.remove(reward_file)
@@ -202,7 +208,7 @@ class Gazebo(gym.Env):
             reward = 0
 
         with self._images_lock:
-            new_state = combine(self._images, action)
+            new_state = combine(self._images, action, [1, 0]) # one_hot_goal(self._goal, self._goals))
         return new_state, reward, False, {}
 
     def _takeoff(self):
@@ -214,7 +220,7 @@ class Gazebo(gym.Env):
             self._takeoff()
             self._crashed = False
         with self._images_lock:
-            return combine(self._images, [0, 0, 0])
+            return combine(self._images, [0, 0, 0], [0, 1]) # one_hot_goal(self._goal, self._goals))
 
     def pause(self):
         self._land_publisher.publish(msg.Empty())
