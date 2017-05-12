@@ -2,7 +2,7 @@
     <arg name='gui' default='true' />
 
     <include file='$(find gazebo_ros)/launch/empty_world.launch'>
-      <arg name='world_name' value='$(find a3c)/worlds/test.world'/>
+      <arg name='world_name' value='$(find a3c)/worlds/simple_maze.world'/>
       <arg name='gui' value='$(arg gui)'/>
       <arg name='verbose' value='true'/>
     </include>
