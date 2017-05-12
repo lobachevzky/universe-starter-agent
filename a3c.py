@@ -191,7 +191,6 @@ should be computed.
 
         self.env = env
         self.task = task
-        # policy = MLPpolicy
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
@@ -219,7 +218,7 @@ should be computed.
             entropy = tf.reduce_sum(pi.dist.entropy())
 
             # loss gets minimized! pi_loss goes down, cv_loss, goes down, and entropy goes up.
-            self.loss = pi_loss + 0.25 * vf_loss  # - entropy * 1e-4
+            self.loss = pi_loss + 0.25 * vf_loss - entropy * 1e-4
             self.loss = tf.verify_tensor_all_finite(self.loss, 'loss')
 
             # 20 represents the number of "local steps":  the number of timesteps

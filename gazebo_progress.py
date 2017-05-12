@@ -167,7 +167,6 @@ class Gazebo(gym.Env):
             reward = calculate_reward(progress, self._progress)
             self._progress = progress
             new_state = combine(self._images, action)
-            assert new_state.shape == (72 * 32 + 3,)
             return new_state, reward, self._done, {}
 
     def _takeoff(self):
@@ -181,9 +180,7 @@ class Gazebo(gym.Env):
             self._progress = 0
             self._done = False
         with self._images_lock:
-            n = combine(self._images, [0, 0, 0])
-            assert n.shape == (2307,)
-            return n
+            return combine(self._images, [0, 0, 0])
 
     def pause(self):
         self._land_publisher.publish(msg.Empty())

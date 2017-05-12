@@ -25,9 +25,9 @@ universe.configure_logging()
 
 def create_env(env_id, client_id, remotes, **kwargs):
     if env_id == 'gazebo-progress':
-        return create_gazebo_env(gazebo_progress.Gazebo, 'Gazebo-v0')
+        return create_gazebo_env(gazebo_progress.Gazebo, 'Gazebo-v0', 300)
     if env_id == 'gazebo-goals':
-        return create_gazebo_env(gazebo_goals.Gazebo, 'Gazebo-v1')
+        return create_gazebo_env(gazebo_goals.Gazebo, 'Gazebo-v1', 3000000)
 
     spec = gym.spec(env_id)
     if spec.tags.get('flashgames', False):
@@ -38,11 +38,11 @@ def create_env(env_id, client_id, remotes, **kwargs):
         return create_normal_env(gym.make(env_id))
 
 
-def create_gazebo_env(env, id):
+def create_gazebo_env(env, id, max_steps):
     env = env(action_shape=(3,))
     env = TimeLimit(env)
     env = create_normal_env(env)
-    env.spec = EnvSpec(id, max_episode_steps=300)
+    env.spec = EnvSpec(id, max_episode_steps=max_steps)
     return env
 
 

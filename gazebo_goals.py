@@ -1,27 +1,38 @@
 from __future__ import absolute_import, print_function
 
-import copy
 import os
 import random
+import re
 from Queue import Queue
 from threading import Lock
 
 import gym
 import numpy as np
-import re
-from interface import Env
+from copy import copy
 
 import rospy
 import tf
 from cv_bridge import CvBridge
 from gazebo_msgs.msg import ContactsState, ModelState
-from gazebo_msgs.srv import SetModelState
-from geometry_msgs.msg import Twist, Point, Quaternion, Pose
+from gazebo_msgs.srv import SetModelState, GetModelState, GetWorldProperties
+from geometry_msgs.msg import Twist, Point, Pose
 from geometry_msgs.msg import Vector3
 from sensor_msgs.msg import Image
 from spaces import ActionSpace, ObservationSpace
 from std_msgs import msg
 from std_srvs import srv
+
+MIN_DISTANCE = 1
+
+
+def call_service(service, message_type=srv.Empty, args=None):
+    if args is None:
+        args = []
+    rospy.wait_for_service(service)
+    return rospy.ServiceProxy(service, message_type)(*args)
+
+
+MODEL_NAMES = call_service('/gazebo/get_world_properties', GetWorldProperties).model_names
 
 
 def calculate_progress(tf_listener):
@@ -39,21 +50,28 @@ def concat_images(images, cv_bridge):
     return np.concatenate(map(cv_bridge.imgmsg_to_cv2, images))
 
 
-def call_service(service, message_type=srv.Empty, args=None):
-    if args is None:
-        args = []
-    rospy.wait_for_service(service)
-    return rospy.ServiceProxy(service, message_type)(*args)
-
-
 def action_msg(lx, ly, az):
     linear = Vector3(x=lx, y=ly)
     angular = Vector3(z=az)
     return Twist(linear, angular)
 
 
-def calculate_reward(new_progress, old_progress):
-    return new_progress - old_progress
+def calculate_reward(reached_goal):
+    if reached_goal:
+        return 10
+    else:
+        return 0
+
+
+def reached(goal):
+    goal_name = 'goal' + str(goal)
+    assert goal_name in MODEL_NAMES, "'{}' not among valid names: {}".format(goal_name, MODEL_NAMES)
+    state = call_service('/gazebo/get_model_state', GetModelState,
+                         ['quadrotor', '{}::link'.format(goal_name)])
+    pos = state.pose.position
+    vector_to_goal = np.array([pos.x, pos.y, pos.z])
+    distance_to_goal = np.linalg.norm(vector_to_goal, ord=2)
+    return distance_to_goal < MIN_DISTANCE
 
 
 def get_debug_num(contact_msg):
@@ -73,11 +91,22 @@ def set_random_pos():
     )])
 
 
+def combine(*args):
+    return np.concatenate([arg if type(arg) == list else arg.flatten()
+                           for arg in args])
+
+
+def choose_new_goal(goals, old_goal):
+    goals = copy(goals)
+    goals.remove(old_goal)
+    return random.choice(goals)
+
+
 class Gazebo(gym.Env):
     def __init__(self, action_shape, reward_file='reward.csv'):
 
         rospy.init_node('environment')
-        self._done = False
+        self._crashed = False
         self._tf_listener = tf.TransformListener()
         self._cv_bridge = CvBridge()
 
@@ -88,7 +117,7 @@ class Gazebo(gym.Env):
         self._skipped_images = 0
 
         # locks
-        self._done_lock = Lock()
+        self._crashed_lock = Lock()
         self._images_lock = Lock()
         self._skipped_images_lock = Lock()
 
@@ -106,18 +135,28 @@ class Gazebo(gym.Env):
         while True:
             with self._images_lock:
                 if self._image_queue.full():
-                    observation_shape = self._images.shape
-                    rospy.loginfo(observation_shape)
+                    image_shape = self._images.shape
+                    rospy.loginfo(image_shape)
                     break
             # prevent CPU burnout
             rospy.wait_for_message('ardrone/image_raw', Image)
         rospy.loginfo('Got image dimensions.')
 
         # spaces
-        self._observation_space = ObservationSpace(observation_shape)
+        image_size = np.array(image_shape).prod(dtype=int)
+        action_size = 3
+        observation_size = image_size + action_size
+
+        self._observation_space = ObservationSpace((observation_size,))
         self._action_space = ActionSpace(action_shape)
-        self._progress = 0  # updated at each call to step
+
+        self._observation_space.subspaces = [image_size, action_size]
+        self._observation_space.subspace_shapes = [image_shape, (action_size,)]
+
         self._reward_file = reward_file
+
+        self._goals = [0, 1]
+        self._goal = 0
 
         try:
             os.remove(reward_file)
@@ -130,9 +169,8 @@ class Gazebo(gym.Env):
     # crash_bumper callback
     def _contact(self, contact_msg):
         if contact_msg.states:
-            with self._done_lock:
-                self._done = True
-
+            with self._crashed_lock:
+                self._crashed = True
                 # image_raw callback
 
     def _update_image(self, image_msg):
@@ -151,24 +189,32 @@ class Gazebo(gym.Env):
     def _step(self, action):
         self._action_publisher.publish(action_msg(*action))  # do_action
         rospy.wait_for_message('ardrone/image_raw', Image)  # take at most one step per image
-        with self._done_lock, self._images_lock:
-            progress = calculate_progress(self._tf_listener)
-            reward = calculate_reward(progress, self._progress)
-            self._progress = progress
-            return self._images, reward, self._done, {}
+        with self._crashed_lock:
+            crashed = self._crashed
+
+        if crashed:
+            reward = -1
+            self._reset()
+        elif reached(self._goal):
+            reward = 10
+            self._goal = choose_new_goal(self._goals, self._goal)
+        else:
+            reward = 0
+
+        with self._images_lock:
+            new_state = combine(self._images, action)
+        return new_state, reward, False, {}
 
     def _takeoff(self):
         self._takeoff_publisher.publish(msg.Empty())
 
     def _reset(self):
-        with self._done_lock:
+        with self._crashed_lock:
             call_service('gazebo/reset_world')
-            # set_random_pos()
             self._takeoff()
-            self._progress = 0
-            self._done = False
+            self._crashed = False
         with self._images_lock:
-            return self._images
+            return combine(self._images, [0, 0, 0])
 
     def pause(self):
         self._land_publisher.publish(msg.Empty())
