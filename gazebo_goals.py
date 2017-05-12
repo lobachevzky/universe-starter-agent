@@ -200,9 +200,11 @@ class Gazebo(gym.Env):
 
         if crashed:
             reward = -1
+            print('Crashed. Goal={}'.format(self._goal))
             self._reset()
         elif reached(self._goal, self.model_names):
             reward = 10
+            print('Reached goal {}'.format(self._goal))
             self._goal = choose_new_goal(self._goals, self._goal)
         else:
             reward = 0
