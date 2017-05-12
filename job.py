@@ -107,9 +107,14 @@ def run(args, server):
         trainer.start(sess, summary_writer)
         global_step = sess.run(trainer.global_step)
         logger.info("Starting training at step=%d", global_step)
+
+        tick = time.time()
         while not sv.should_stop() and (not num_global_steps or global_step < num_global_steps):
             trainer.process(sess)
             global_step = sess.run(trainer.global_step)
+            if time.time() - tick > 30:
+                saver.save(sess, logdir)
+                tick = time.time()
 
     # Ask for all the services to stop.
     sv.stop()
