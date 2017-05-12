@@ -147,7 +147,7 @@ class MLPpolicy(Policy):
         h = tf.nn.elu(linear(x, size1, 'h1'))
         return tf.nn.elu(linear(h, size2, 'h2'))
 
-    def get_initial_features(self, _=None):
+    def get_initial_features(self, last_features=None):
         return []
 
     def act(self, ob):
@@ -196,7 +196,7 @@ class LSTMpolicy(Policy):
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
         return tf.reshape(lstm_outputs, [-1, size])
 
-    def get_initial_features(self, _=None):
+    def get_initial_features(self, last_features=None):
         return self.state_init
 
     def act(self, ob, c, h):
