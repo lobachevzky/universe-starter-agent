@@ -61,10 +61,8 @@ def categorical_dist(param_tensor):
 
 
 def get_action(param_tensor, ac_shape, continuous):
-    with tf.control_dependencies(tf.assert_equal(tf.shape(param_tensor)[1:],
-                                                 [len(ac_shape), 2])):
-        dist = normal_dist(param_tensor) if continuous else categorical_dist(param_tensor)
-        return tf.reshape(dist.sample(), ac_shape)
+    dist = normal_dist(param_tensor) if continuous else categorical_dist(param_tensor)
+    return tf.reshape(dist.sample(), ac_shape)
 
 
 def log_prob(actions, dist, discrete):
@@ -85,14 +83,13 @@ class Policy(object):
         # pull out 'subsections' if specified by the environment. This allows the environment to pass
         # in multiple inputs with different shapes (e.g. an image along with the previous action)
         try:
-            subsections = tf.split(x, ob_space.subsections, axis=1)
+            subspaces = tf.split(x, ob_space.subspaces, axis=1)
             obs = []
-            for subsection, shape in zip(subsections, ob_space.subsection_shapes):
-                obs += [tf.reshape(subsection, shape)]
+            for subsection, shape in zip(subspaces, ob_space.subspace_shapes):
+                obs += [tf.reshape(subsection, [-1] + list(shape))]
         except AttributeError:
             obs = [x]
         for i, ob in enumerate(obs):
-            print(ob.shape)
             if len(list(ob.shape)) == 4:
                 for j in range(4):
                     obs[i] = tf.nn.elu(conv2d(obs[i], 32, "l{}".format(j + 1), [3, 3], [2, 2]))
@@ -128,7 +125,7 @@ class Policy(object):
         return tf.reduce_sum(self.dist.log_prob(actions), axis=1)
 
     @abc.abstractmethod
-    def get_initial_features(self):
+    def get_initial_features(self, last_features=None):
         pass
 
     @abc.abstractmethod
@@ -150,7 +147,7 @@ class MLPpolicy(Policy):
         h = tf.nn.elu(linear(x, size1, 'h1'))
         return tf.nn.elu(linear(h, size2, 'h2'))
 
-    def get_initial_features(self):
+    def get_initial_features(self, _=None):
         return []
 
     def act(self, ob):
@@ -174,12 +171,14 @@ class LSTMpolicy(Policy):
             lstm = rnn.BasicLSTMCell(size, state_is_tuple=True)
         else:
             lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
+
         self.state_size = lstm.state_size
         step_size = tf.shape(self.x)[:1]
 
         c_init = np.zeros((1, lstm.state_size.c), np.float32)
         h_init = np.zeros((1, lstm.state_size.h), np.float32)
         self.state_init = [c_init, h_init]
+
         c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
         h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
         self.state_in = [c_in, h_in]
@@ -197,7 +196,7 @@ class LSTMpolicy(Policy):
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
         return tf.reshape(lstm_outputs, [-1, size])
 
-    def get_initial_features(self):
+    def get_initial_features(self, _=None):
         return self.state_init
 
     def act(self, ob, c, h):
@@ -210,6 +209,7 @@ class LSTMpolicy(Policy):
         return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
 
 
+# noinspection PyAttributeOutsideInit
 class NavPolicy(Policy):
     def pass_through_network(self, x):
         hidden_size = 50
@@ -271,8 +271,12 @@ class NavPolicy(Policy):
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
         return tf.reduce_sum(transformed, axis=[1, 2])
 
-    def get_initial_features(self):
-        return self.state_init  # TODO: carry over prev state and update the map
+    def get_initial_features(self, last_features=None):
+        if last_features is None:
+            c, h, m = self.state_init
+        else:
+            c, h, m = last_features
+        return [c, h, m]
 
     def act(self, ob, c, h, m):
         sess = tf.get_default_session()

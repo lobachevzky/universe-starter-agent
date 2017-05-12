@@ -38,6 +38,7 @@ class FastSaver(tf.train.Saver):
 
 
 def run(args, server):
+    # with tf.control_dependencies([tf.assert_equal(1, 0)]):
     env = create_env(args.env_id, client_id=str(args.task), remotes=args.remotes)
     trainer = A3C(env, args.task, args.visualise, eval(args.policy), args.learning_rate)
 
@@ -106,9 +107,14 @@ def run(args, server):
         trainer.start(sess, summary_writer)
         global_step = sess.run(trainer.global_step)
         logger.info("Starting training at step=%d", global_step)
+
+        tick = time.time()
         while not sv.should_stop() and (not num_global_steps or global_step < num_global_steps):
             trainer.process(sess)
             global_step = sess.run(trainer.global_step)
+            if time.time() - tick > 30:
+                saver.save(sess, logdir)
+                tick = time.time()
 
     # Ask for all the services to stop.
     sv.stop()
@@ -195,6 +201,7 @@ Setting up Tensorflow for data parallel work
         print('################# SERVER ######################')
         print(server.target)
         print('################# SERVER ######################')
+
         run(args, server)
     else:
         tf.train.Server(cluster, job_name="ps", task_index=args.task,

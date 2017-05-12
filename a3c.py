@@ -117,7 +117,7 @@ the policy, and as long as the rollout exceeds a certain length, the thread
 runner appends the policy to the queue.
 """
     last_state = env.reset()  # .reshape(env.observation_space.shape)
-    last_features = policy.get_initial_features()
+    last_features = policy.get_initial_features(last_features=None)
     length = 0
     rewards = 0
 
@@ -126,7 +126,6 @@ runner appends the policy to the queue.
         rollout = PartialRollout()
 
         for _ in range(num_local_steps):
-            # TODO: why isn't this ob reshape working?
 
             fetched = policy.act(last_state, *last_features)
             action, value_, features = fetched[0], fetched[1], fetched[2:]
@@ -155,7 +154,7 @@ runner appends the policy to the queue.
                 terminal_end = True
                 if length >= timestep_limit or not env.metadata.get('semantics.autoreset'):
                     last_state = env.reset()  # .reshape(env.observation_space.shape)
-                last_features = policy.get_initial_features()
+                last_features = policy.get_initial_features(last_features)
                 print("Episode finished. Sum of rewards: {}. Length: {}".format(rewards, length))
                 length = 0
                 rewards = 0
@@ -191,7 +190,6 @@ should be computed.
 
         self.env = env
         self.task = task
-        # policy = MLPpolicy
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
@@ -219,7 +217,7 @@ should be computed.
             entropy = tf.reduce_sum(pi.dist.entropy())
 
             # loss gets minimized! pi_loss goes down, cv_loss, goes down, and entropy goes up.
-            self.loss = pi_loss + 0.25 * vf_loss  # - entropy * 1e-4
+            self.loss = pi_loss + 0.25 * vf_loss - entropy * 1e-4
             self.loss = tf.verify_tensor_all_finite(self.loss, 'loss')
 
             # 20 represents the number of "local steps":  the number of timesteps
