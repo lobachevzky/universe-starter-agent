@@ -11,9 +11,9 @@ parser.add_argument('-w', '--num-workers', default=1, type=int,
 parser.add_argument('-r', '--remotes', default=None,
                     help='The address of pre-existing VNC servers and '
                          'rewarders to use (e.g. -r vnc://localhost:5900+15900,vnc://localhost:5901+15901).')
-parser.add_argument('-e', '--env-id', type=str, default="PongDeterministic-v3",
+parser.add_argument('-e', '--env-id', type=str, default="fake_gazebo",
                     help="Environment id")
-parser.add_argument('-l', '--log-dir', type=str, default="/tmp/pong",
+parser.add_argument('-l', '--log-dir', type=str, default="/tmp/gazebo",
                     help="Log directory path")
 parser.add_argument('-s', '--spec-path', type=str, default="spec.yaml",
                     help="Path to file with spec (argument to tf.train.ClusterSpec)")

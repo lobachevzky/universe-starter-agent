@@ -14,12 +14,10 @@ class Gazebo(gym.Env):
         return -np.inf, np.inf
 
     def __init__(self,
-                 observation_range,
-                 action_range,
                  action_shape):
         self.shape = (72, 32, 1)
-        self._action_space = ActionSpace(*action_range, shape=action_shape)
-        self._observation_space = ObservationSpace(*observation_range, shape=self.shape)
+        self._action_space = ActionSpace(shape=action_shape)
+        self._observation_space = ObservationSpace(shape=self.shape)
 
     def _step(self, action):
         done = not random.randint(0, 10)

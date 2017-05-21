@@ -210,7 +210,7 @@ class LSTMpolicy(Policy):
 
 
 # noinspection PyAttributeOutsideInit
-class NavPolicy(Policy):
+class NavPolicy1(Policy):
     def pass_through_network(self, x):
         hidden_size = 50
         height = width = 4
@@ -260,16 +260,106 @@ class NavPolicy(Policy):
             translation
         ], axis=2)
 
-        abs_map = tf.tile(m_in, [step_size, 1, 1])  # batch_size * in_height, in_width, size
-        abs_map = tf.reshape(abs_map, [step_size, height, width, hidden_size])
+        hidden_map = tf.tile(m_in, [step_size, 1, 1])
+        hidden_map = tf.reshape(hidden_map, [step_size, height, width, hidden_size])
 
-        transformed = transformer(abs_map, theta, (height, width))
+        transformed = transformer(hidden_map, theta, (height, width))
         transformed = alpha * transformed + (1 - alpha) * add
 
         lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
         return tf.reduce_sum(transformed, axis=[1, 2])
+
+    def get_initial_features(self, last_features=None):
+        if last_features is None:
+            c, h, m = self.state_init
+        else:
+            c, h, m = last_features
+        return [c, h, m]
+
+    def act(self, ob, c, h, m):
+        sess = tf.get_default_session()
+        return sess.run([self.action, self.vf] + self.state_out,
+                        {self.x: [ob],
+                         self.state_in[0]: c,
+                         self.state_in[1]: h,
+                         self.state_in[2]: m,
+                         })
+
+    def value(self, ob, c, h, m):
+        sess = tf.get_default_session()
+        return sess.run(self.vf,
+                        {self.x: [ob],
+                         self.state_in[0]: c,
+                         self.state_in[1]: h,
+                         self.state_in[2]: m,
+                         })[0]
+
+
+# noinspection PyAttributeOutsideInit
+class NavPolicy2(Policy):
+    def pass_through_network(self, x):
+        height = width = 4
+
+        splits = [1, 1, 2, height * width / 4]
+        lstm_size = sum(splits)
+        step_size = tf.shape(self.x)[0]
+
+        if use_tf100_api:
+            lstm = rnn.BasicLSTMCell(lstm_size, state_is_tuple=True)
+        else:
+            lstm = rnn.rnn_cell.BasicLSTMCell(lstm_size, state_is_tuple=True)
+
+        self.state_size = lstm.state_size
+
+        m_shape = height, width
+        c_init = np.zeros((1, lstm.state_size.c), np.float32)
+        h_init = np.zeros((1, lstm.state_size.h), np.float32)
+        m_init = np.zeros(m_shape, np.float32)
+
+        self.state_init = [c_init, h_init, m_init]
+        c_in = tf.placeholder(tf.float32, [1, lstm.state_size.c])
+        h_in = tf.placeholder(tf.float32, [1, lstm.state_size.h])
+        m_in = tf.placeholder(tf.float32, m_shape)
+
+        self.state_in = [c_in, h_in, m_in]
+
+        if use_tf100_api:
+            state_in = rnn.LSTMStateTuple(c_in, h_in)
+        else:
+            state_in = rnn.rnn_cell.LSTMStateTuple(c_in, h_in)
+
+        x = tf.expand_dims(x, 0)
+        lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+            lstm, x, initial_state=state_in, sequence_length=[step_size],
+            time_major=False)  # lstm_outputs 1 x step_size x lstm_size
+
+        lstm_outputs = tf.squeeze(lstm_outputs, 0)
+
+        alpha, angle, translation, add = tf.split(lstm_outputs, splits, axis=1)
+        alpha = tf.reshape(alpha, [step_size, 1, 1, 1])
+        add = tf.reshape(add, [step_size, height / 2, width / 2])
+        add = tf.concat([add, tf.zeros_like(add)], 1)
+        add = tf.concat([add, tf.zeros_like(add)], 2)
+        add = tf.expand_dims(add, 3)
+
+        theta = tf.stack([
+            tf.concat([tf.cos(angle), tf.sin(angle)], 1),
+            tf.concat([-tf.sin(angle), tf.cos(angle)], 1),
+            translation
+        ], axis=2)
+
+        hidden_map = tf.tile(m_in, [step_size, 1])
+        hidden_map = tf.reshape(hidden_map, [step_size, height, width, 1])
+
+        transformed = transformer(hidden_map, theta, (height, width))
+        transformed_ = alpha * transformed + (1 - alpha) * add
+
+        lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
+
+        self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
+        return tf.reshape(transformed_, [step_size, height * width])
 
     def get_initial_features(self, last_features=None):
         if last_features is None:

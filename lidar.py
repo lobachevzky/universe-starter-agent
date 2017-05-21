@@ -5,12 +5,11 @@ import time
 
 EPSILON = 1e-9
 step_size = 1
-map_height, map_width = 6, 9
-half_height, half_width = [x / 2.0 for x in [map_height, map_width]]
-meshgrid = tf.to_float(tf.meshgrid(tf.range(map_width), tf.range(map_height - 1, -1, -1)))
+height, width = 6, 9
+meshgrid = tf.to_float(tf.meshgrid(tf.range(width), tf.range(height - 1, -1, -1)))
 print(meshgrid.get_shape())
 # hidden_map = np.random.operator((map_height, map_width), maxval=10)
-hidden_map = np.random.randint(0, 9, size=(step_size, map_height, map_width))
+hidden_map = np.random.randint(0, 9, size=(step_size, height, width))
 print('map')
 print(hidden_map)
 
@@ -21,8 +20,8 @@ alpha = tf.ones(step_size)
 
 add = tf.zeros_like(hidden_map)
 mask = tf.ones_like(hidden_map)
-for y in range(map_height):
-    for x in range(map_width):
+for y in range(height):
+    for x in range(width):
         angle = np.arctan2(float(y), np.maximum(EPSILON, float(x)))
         lidar_index = int(angle / (np.pi / 2) * lidar_size)
         lidar_distances = lidar[:, lidar_index]
@@ -37,12 +36,12 @@ for y in range(map_height):
 
 
         def in_zone_function(i, j):
-            angle = np.arctan2(map_height - i - 1, j)
+            angle = np.arctan2(height - i - 1, j)
             arc = lidar_size * angle / (np.pi / 2)
             return np.bitwise_and(lidar_index <= arc, arc <= lidar_index + 1)
 
 
-        in_zone = np.fromfunction(in_zone_function, (map_height, map_width))
+        in_zone = np.fromfunction(in_zone_function, (height, width))
         alpha = tf.reshape(alpha, [-1, 1, 1])
         in_zone = np.expand_dims(in_zone, 0)
         change_value = alpha * in_zone

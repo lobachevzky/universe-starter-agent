@@ -21,7 +21,7 @@ from a3c import A3C
 from envs import create_env
 import distutils.version
 # noinspection PyUnresolvedReferences
-from model import MLPpolicy, LSTMpolicy, NavPolicy
+from model import MLPpolicy, LSTMpolicy, NavPolicy1, NavPolicy2
 
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 
@@ -155,7 +155,7 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--log-dir', default='/tmp/gazebo', help='Log directory path')
     parser.add_argument('--env-id', default='gazebo', help='Environment id')
     parser.add_argument('--workers', type=str, default=None, help="ips and ports for workers (comma separated)")
-    parser.add_argument('--policy', type=str, default='NavPolicy', help="LSTMpolicy or MLPpolicy")
+    parser.add_argument('--policy', type=str, default='NavPolicy2', help="LSTMpolicy or MLPpolicy")
     parser.add_argument('--learning-rate', type=float, default=1e-5, help="LSTMpolicy or MLPpolicy")
     parser.add_argument('--ps', type=str, default=None, help="ips and ports for parameter server (comma separated)")
     parser.add_argument('--host', default='127.0.0.1'

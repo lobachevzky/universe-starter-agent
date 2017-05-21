@@ -149,7 +149,7 @@ runner appends the policy to the queue.
                 summary_writer.add_summary(summary, policy.global_step.eval())
                 summary_writer.flush()
 
-            timestep_limit = env.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
+            timestep_limit = 30000  # env.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
             if terminal or length >= timestep_limit:
                 terminal_end = True
                 if length >= timestep_limit or not env.metadata.get('semantics.autoreset'):
