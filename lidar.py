@@ -56,10 +56,9 @@ for lidar_index, lidar_distances in enumerate(tf.unstack(lidar, axis=1)):
 
 
     in_zone = np.fromfunction(in_zone_function, (height, width))
-
-    alpha = tf.reshape(alpha, [-1, 1, 1])
     in_zone = np.expand_dims(in_zone, 0)
-    change_value = alpha * in_zone
+    alpha = tf.reshape(alpha, [-1, 1, 1])
+    change_value = in_zone * alpha
     exp = tf.exp(change_value * tf.log(tf.maximum(EPSILON, mask)))
     hidden_map *= exp
     value_add = change_value * add

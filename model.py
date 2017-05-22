@@ -8,6 +8,7 @@ from gaussian_log import NormalWithLogScale
 from spatial_transformer import transformer
 
 use_tf100_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('1.0.0')
+EPSILON = 0.00001
 
 
 def normalized_columns_initializer(std=1.0):
@@ -260,7 +261,7 @@ class NavPolicy1(Policy):
             translation
         ], axis=2)
 
-        hidden_map = tf.tile(m_in, [step_size, 1, 1])
+        hidden_map = tf.tile(m_in, [step_size, 1, 1])  # step_size * height, width, hidden_size
         hidden_map = tf.reshape(hidden_map, [step_size, height, width, hidden_size])
 
         transformed = transformer(hidden_map, theta, (height, width))
@@ -301,8 +302,9 @@ class NavPolicy1(Policy):
 class NavPolicy2(Policy):
     def pass_through_network(self, x):
         height = width = 4
+        lidar_size = 8
 
-        splits = [1, 1, 2, height * width / 4]
+        splits = [1, 1, 2, lidar_size]
         lstm_size = sum(splits)
         step_size = tf.shape(self.x)[0]
 
@@ -334,32 +336,65 @@ class NavPolicy2(Policy):
         lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
             lstm, x, initial_state=state_in, sequence_length=[step_size],
             time_major=False)  # lstm_outputs 1 x step_size x lstm_size
-
         lstm_outputs = tf.squeeze(lstm_outputs, 0)
-
-        alpha, angle, translation, add = tf.split(lstm_outputs, splits, axis=1)
-        alpha = tf.reshape(alpha, [step_size, 1, 1, 1])
-        add = tf.reshape(add, [step_size, height / 2, width / 2])
-        add = tf.concat([add, tf.zeros_like(add)], 1)
-        add = tf.concat([add, tf.zeros_like(add)], 2)
-        add = tf.expand_dims(add, 3)
+        alpha, angle, translation, lidar = tf.split(lstm_outputs, splits, axis=1)
+        hidden_map = tf.tile(m_in, [step_size, 1])  # step_size * height, width
+        hidden_map = tf.reshape(hidden_map, [step_size, height, width, 1])
 
         theta = tf.stack([
             tf.concat([tf.cos(angle), tf.sin(angle)], 1),
             tf.concat([-tf.sin(angle), tf.cos(angle)], 1),
             translation
         ], axis=2)
+        hidden_map = transformer(hidden_map, theta, (height, width))
 
-        hidden_map = tf.tile(m_in, [step_size, 1])
-        hidden_map = tf.reshape(hidden_map, [step_size, height, width, 1])
+        meshgrid = tf.to_float(
+            tf.meshgrid(tf.range(width / 2),
+                        tf.range(height / 2 - 1, -1, -1))
+        )
 
-        transformed = transformer(hidden_map, theta, (height, width))
-        transformed_ = alpha * transformed + (1 - alpha) * add
+        def in_zone_function(i, j):
+            angle = np.arctan2(height/2 - i - 1, j)
+            arc = lidar_size * angle / (np.pi / 2)
+            return np.bitwise_and(lidar_index <= arc, arc <= lidar_index + 1)
+
+        def pad(quarter, value):
+            half = tf.concat([quarter, value * tf.ones_like(quarter)], 1)
+            whole = tf.concat([half, value * tf.ones_like(half)], 2)
+            return tf.expand_dims(whole, 3)
+
+        for lidar_index, lidar_distances in enumerate(tf.unstack(lidar, axis=1)):
+            with tf.control_dependencies([
+                tf.assert_equal(tf.shape(meshgrid), [2, width / 2, height / 2])
+            ]):
+                grid_distances_ = tf.norm(meshgrid, axis=0)
+                grid_distances = tf.expand_dims(grid_distances_, 0)
+            with tf.control_dependencies([
+                tf.assert_equal(tf.shape(grid_distances), [1, width / 2, height / 2]),
+                tf.assert_equal(tf.shape(lidar_distances), [step_size])
+            ]):
+                lidar_distances = tf.reshape(lidar_distances, [step_size, 1, 1])
+                mask_ = tf.clip_by_value(grid_distances - lidar_distances, 0, 1)
+            add = tf.maximum(0.0, 1 - tf.abs(grid_distances - lidar_distances))
+
+            in_zone = np.fromfunction(in_zone_function, (height / 2, width / 2))
+            in_zone = np.expand_dims(in_zone, 0)
+            alpha = tf.reshape(alpha, [-1, 1, 1])
+            change_value = in_zone * alpha
+            mask = tf.exp(change_value * tf.log(tf.maximum(EPSILON, mask_)))
+            with tf.control_dependencies([
+                tf.assert_equal(tf.shape(add), [step_size, width / 2, height / 2]),
+                tf.assert_equal(tf.shape(mask), [step_size, width / 2, height / 2]),
+                tf.assert_equal(tf.shape(hidden_map), [step_size, width, height, 1])
+            ]):
+
+                hidden_map *= pad(mask, 1)
+                hidden_map += pad(change_value * add, 0)
 
         lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
 
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
-        return tf.reshape(transformed_, [step_size, height * width])
+        return tf.reshape(hidden_map, [step_size, height * width])
 
     def get_initial_features(self, last_features=None):
         if last_features is None:
