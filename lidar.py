@@ -3,8 +3,10 @@ import tensorflow as tf
 import numpy as np
 import time
 
+from gaussian_log import NormalWithLogScale
+
 EPSILON = 1e-9
-step_size = 1
+step_size = 2
 height, width = 6, 9
 meshgrid = tf.to_float(tf.meshgrid(tf.range(width), tf.range(height - 1, -1, -1)))
 print(meshgrid.get_shape())
@@ -15,7 +17,7 @@ print(hidden_map)
 
 hidden_map = tf.constant(hidden_map, dtype=tf.float32)
 lidar_size = 6
-lidar = np.random.randint(0, 9, size=(step_size, lidar_size)).astype(np.float32)
+lidar = np.random.randint(0, 9, size=(step_size, 2, lidar_size)).astype(np.float32)
 alpha = tf.ones(step_size)
 
 with tf.Session() as sess:
@@ -42,11 +44,24 @@ with tf.Session() as sess:
 
 add = tf.zeros_like(hidden_map)
 mask = tf.ones_like(hidden_map)
-for lidar_index, lidar_distances in enumerate(tf.unstack(lidar, axis=1)):
+for lidar_index, lidar_params in enumerate(tf.unstack(lidar, axis=2)):
+    loc, log_scale = tf.unstack(lidar_params, axis=1)
     grid_distances = tf.norm(meshgrid, axis=0)
     grid_distances = tf.expand_dims(grid_distances, 0)
-    mask = tf.clip_by_value(grid_distances - lidar_distances, 0, 1)
-    add = tf.maximum(0.0, 1 - tf.abs(grid_distances - lidar_distances))
+    with tf.control_dependencies([
+        tf.assert_equal(tf.shape(grid_distances), [1, height, width]),
+        tf.assert_equal(tf.shape(loc), [2])
+    ]):
+        loc = tf.reshape(loc, [-1, 1, 1])
+        log_scale = tf.reshape(log_scale, [-1, 1, 1])
+        dist = NormalWithLogScale(loc, log_scale)
+        mask = dist.cdf(grid_distances)
+    # mask = tf.sigmoid(grid_distances - lidar_distances)
+    # add = tf.maximum(0.0, 1 - tf.abs(grid_distances - lidar_distances))
+
+    add = dist.prob(grid_distances)
+    print_val('add', f=lambda x: np.round(x, 0))
+    # add = dist.cdf()
 
 
     def in_zone_function(i, j):
