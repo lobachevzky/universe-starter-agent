@@ -21,7 +21,8 @@ from a3c import A3C
 from envs import create_env
 import distutils.version
 # noinspection PyUnresolvedReferences
-from model import MLPpolicy, LSTMpolicy, NavPolicy1, NavPolicy2
+from model import MLPpolicy, LSTMpolicy, NavPolicy1
+from nav_policy_correct_version import NavPolicy2
 
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 

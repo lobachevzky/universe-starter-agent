@@ -18,7 +18,7 @@ print(hidden_map)
 hidden_map = tf.constant(hidden_map, dtype=tf.float32)
 lidar_size = 6
 lidar = np.random.randint(0, 9, size=(step_size, 2, lidar_size)).astype(np.float32)
-alpha = tf.ones(step_size)
+alpha = tf.ones((step_size, height, width))
 
 with tf.Session() as sess:
     def print_val(x, f=None, name=None):
@@ -72,7 +72,7 @@ for lidar_index, lidar_params in enumerate(tf.unstack(lidar, axis=2)):
 
     in_zone = np.fromfunction(in_zone_function, (height, width))
     in_zone = np.expand_dims(in_zone, 0)
-    alpha = tf.reshape(alpha, [-1, 1, 1])
+    alpha = tf.reshape(alpha, [-1, height, width])
     change_value = in_zone * alpha
     exp = tf.exp(change_value * tf.log(tf.maximum(EPSILON, mask)))
     hidden_map *= exp
