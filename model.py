@@ -166,6 +166,7 @@ class LSTMpolicy(Policy):
     def pass_through_network(self, x):
         x = tf.nn.elu(linear(x, 200, 'h0'))
         x = tf.expand_dims(x, [0])
+
         # size = 256
         size = 128
         if use_tf100_api:
@@ -193,7 +194,7 @@ class LSTMpolicy(Policy):
             lstm, x, initial_state=state_in, sequence_length=step_size,
             time_major=False)
 
-        lstm_c, lstm_h = state_in  # lstm_state
+        lstm_c, lstm_h = lstm_state
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
         return tf.reshape(lstm_outputs, [-1, size])
 
@@ -267,7 +268,7 @@ class NavPolicy1(Policy):
         transformed = transformer(hidden_map, theta, (height, width))
         transformed = alpha * transformed + (1 - alpha) * add
 
-        lstm_c, lstm_h = state_in  # lstm_state, both 1 x size
+        lstm_c, lstm_h = lstm_state  # , both 1 x size
 
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :], m_in]
         return tf.reduce_sum(transformed, axis=[1, 2])
